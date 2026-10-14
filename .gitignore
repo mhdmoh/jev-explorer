@@ -20,10 +20,17 @@ venv/
 .coverage
 htmlcov/
 
+# Node / Vite
+node_modules/
+.vite/
+*.local
+coverage/
+*.tsbuildinfo
+
 # Demo workspace mutations (keep structure, ignore generated notes)
-demo/workspace/notes/*
-!demo/workspace/notes/.gitkeep
-demo/workspace/config.json
+backend/demo/workspace/notes/*
+!backend/demo/workspace/notes/.gitkeep
+backend/demo/workspace/config.json
 
 # OS / editor
 .DS_Store

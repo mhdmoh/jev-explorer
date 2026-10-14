@@ -1,5 +1,7 @@
 # AgentGuard
 
+The behavior below is the gateway experiment: typed Jev signals, deterministic policy, and sandboxed tools. That code now lives in `backend/`. The user-facing application is the React app in `frontend/`.
+
 ## Overview
 
 AgentGuard is a small AI engineering experiment that places a typed decision layer and a deterministic policy engine between an agent’s proposed tool call and tool execution. It demonstrates an execution boundary for tool-using agents without claiming to be a production security product.

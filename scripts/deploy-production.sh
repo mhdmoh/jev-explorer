@@ -25,7 +25,7 @@ PROJECT_NAME="${PROJECT_NAME:-agentguard}"
 SSH_HOST="${SSH_HOST:-mhdmoh-server}"
 DOMAIN="${DOMAIN:-}"
 HOST_PORT="${HOST_PORT:-8510}"
-CONTAINER_PORT="${CONTAINER_PORT:-8501}"
+CONTAINER_PORT="${CONTAINER_PORT:-8000}"
 SKIP_TESTS="${SKIP_TESTS:-0}"
 REMOTE_APP_DIR="${REMOTE_APP_DIR:-/opt/apps/${PROJECT_NAME}/production}"
 REMOTE_ENV_FILE="${REMOTE_ENV_FILE:-${REMOTE_APP_DIR}/.env}"
@@ -83,8 +83,7 @@ remote "test -f '${REMOTE_ENV_FILE}'" \
 if [[ "${SKIP_TESTS}" != "1" ]]; then
   log "Running tests + lint…"
   if command -v uv >/dev/null 2>&1; then
-    uv run pytest -q
-    uv run ruff check app tests
+    (cd backend && uv run pytest -q && uv run ruff check app tests)
   else
     warn "uv not found — skipping local tests (set SKIP_TESTS=0 after installing uv)"
   fi
@@ -98,7 +97,7 @@ docker build \
   --platform linux/amd64 \
   -t "${IMAGE_TAG}" \
   -t "${IMAGE_LATEST}" \
-  "${REPO_ROOT}"
+  "${REPO_ROOT}/backend"
 
 # ── Transfer ───────────────────────────────────────────
 log "Transferring image to ${SSH_HOST}…"
@@ -154,7 +153,7 @@ wait_healthy() {
   local tries="${3:-30}"
   local i
   for ((i = 1; i <= tries; i++)); do
-    if remote "curl -fsS 'http://127.0.0.1:${port}/_stcore/health'" >/dev/null 2>&1; then
+    if remote "curl -fsS 'http://127.0.0.1:${port}/health'" >/dev/null 2>&1; then
       log "Healthy: ${name} on :${port}"
       return 0
     fi
@@ -230,7 +229,7 @@ Deployment successful
 Useful commands:
   ssh ${SSH_HOST} 'docker ps --filter name=${CONTAINER_NAME}'
   ssh ${SSH_HOST} 'docker logs -f ${CONTAINER_NAME}'
-  ssh ${SSH_HOST} 'curl -fsS http://127.0.0.1:${HOST_PORT}/_stcore/health'
+  ssh ${SSH_HOST} 'curl -fsS http://127.0.0.1:${HOST_PORT}/health'
   curl -I https://${DOMAIN}/
 ────────────────────────────────────────
 EOF

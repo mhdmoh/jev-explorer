@@ -8,7 +8,7 @@
 #   sudo nginx -t && sudo systemctl reload nginx
 #   sudo certbot --nginx -d __DOMAIN__
 
-upstream agentguard_streamlit {
+upstream agentguard_api {
     server 127.0.0.1:__HOST_PORT__;
 }
 
@@ -18,7 +18,7 @@ server {
     server_name __DOMAIN__;
 
     location / {
-        proxy_pass http://agentguard_streamlit;
+        proxy_pass http://agentguard_api;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
