@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from app.config.settings import Settings
-from app.guard.models import ActionType, JevDecision, PolicyDecision, PolicyOutcome, ToolMetadata
+from app.guard.models import (
+    ActionType,
+    JevDecision,
+    PolicyDecision,
+    PolicyOutcome,
+    ToolMetadata,
+)
 from app.utils.timing import Timer
 
 # Action types that always require at least confirmation (never auto-execute).

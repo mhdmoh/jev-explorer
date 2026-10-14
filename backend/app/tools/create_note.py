@@ -29,7 +29,10 @@ class CreateNoteTool(Tool):
         content = str(arguments.get("content") or "").strip()
         if not content:
             return {"ok": False, "error": "content is required"}
-        name = str(arguments.get("filename") or f"note-{datetime.now(UTC).strftime('%H%M%S')}.txt")
+        name = str(
+            arguments.get("filename")
+            or f"note-{datetime.now(UTC).strftime('%H%M%S')}.txt"
+        )
         rel = f"notes/{Path(name).name}"
         try:
             target = resolve_in_workspace(self._workspace, rel)

@@ -71,7 +71,9 @@ class JevRateLimiter:
 
         anon_ms = max(1, int(self._anon_window_s * Duration.SECOND))
         ip_ms = max(1, int(self._ip_window_s * Duration.SECOND))
-        self._anon_limiter = Limiter(_PerKeyBucketFactory([Rate(self._anon_max, anon_ms)]))
+        self._anon_limiter = Limiter(
+            _PerKeyBucketFactory([Rate(self._anon_max, anon_ms)])
+        )
         self._ip_limiter = Limiter(_PerKeyBucketFactory([Rate(self._ip_max, ip_ms)]))
 
     def acquire(

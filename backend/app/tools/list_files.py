@@ -24,6 +24,8 @@ class ListFilesTool(Tool):
 
     def execute(self, arguments: dict[str, Any]) -> dict[str, Any]:
         entries = sorted(
-            str(p.relative_to(self._workspace)) for p in self._workspace.rglob("*") if p.is_file()
+            str(p.relative_to(self._workspace))
+            for p in self._workspace.rglob("*")
+            if p.is_file()
         )
         return {"ok": True, "files": entries}

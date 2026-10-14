@@ -35,7 +35,9 @@ class ToolRegistry:
             )
         report = workspace / "old-report.pdf"
         if not report.exists():
-            report.write_text("DEMO REPORT — safe to delete in sandbox.\n", encoding="utf-8")
+            report.write_text(
+                "DEMO REPORT — safe to delete in sandbox.\n", encoding="utf-8"
+            )
 
         self._tools: dict[str, Tool] = {
             t.metadata.name: t

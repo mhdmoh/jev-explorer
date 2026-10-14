@@ -16,7 +16,9 @@ class ToolExecutor:
     def run(self, tool_call: ToolCall) -> ExecutionResult:
         with Timer() as timer:
             try:
-                output = self._registry.execute(tool_call.tool_name, tool_call.arguments)
+                output = self._registry.execute(
+                    tool_call.tool_name, tool_call.arguments
+                )
             except UnknownToolError as exc:
                 return ExecutionResult(
                     executed=False,

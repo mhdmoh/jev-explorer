@@ -62,8 +62,12 @@ class AgentGuard:
         """Propose + evaluate + apply policy. Does not execute confirmation-gated tools."""
         run_id = uuid.uuid4().hex[:12]
         started = time.perf_counter()
-        run = AgentRun(run_id=run_id, user_request=user_request, demo_mode=self.demo_mode)
-        run.events.append(event("agent", "request_received", request_preview=user_request[:120]))
+        run = AgentRun(
+            run_id=run_id, user_request=user_request, demo_mode=self.demo_mode
+        )
+        run.events.append(
+            event("agent", "request_received", request_preview=user_request[:120])
+        )
 
         logger.info(
             "run_started run_id=%s demo_mode=%s client_ip=%s anon=%s",
@@ -100,7 +104,9 @@ class AgentGuard:
             return run
 
         run.tool_metadata = meta
-        run.events.append(event("guard", "arguments_validated", tool=tool_call.tool_name))
+        run.events.append(
+            event("guard", "arguments_validated", tool=tool_call.tool_name)
+        )
 
         try:
             jev = self._evaluator.evaluate(
@@ -159,7 +165,9 @@ class AgentGuard:
                 )
             )
         elif policy.outcome == PolicyOutcome.BLOCK:
-            run.events.append(event("tool", "execution_prevented", reason=policy.reason))
+            run.events.append(
+                event("tool", "execution_prevented", reason=policy.reason)
+            )
         else:
             run.events.append(event("policy", "awaiting_human_approval"))
 
@@ -185,7 +193,9 @@ class AgentGuard:
         run.events.append(event("human", "approved" if approved else "rejected"))
 
         if not approved:
-            run.events.append(event("tool", "execution_prevented", reason="Human rejected"))
+            run.events.append(
+                event("tool", "execution_prevented", reason="Human rejected")
+            )
             return run
 
         result = self._executor.run(run.tool_call)

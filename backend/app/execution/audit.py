@@ -12,6 +12,8 @@ def event(
 ) -> AuditEvent:
     # Strip anything that looks like a secret key name
     safe = {
-        k: v for k, v in metadata.items() if "key" not in k.lower() and "secret" not in k.lower()
+        k: v
+        for k, v in metadata.items()
+        if "key" not in k.lower() and "secret" not in k.lower()
     }
     return AuditEvent(stage=stage, event=name, metadata=safe, duration_ms=duration_ms)

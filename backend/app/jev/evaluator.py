@@ -108,9 +108,15 @@ class JevEvaluator:
             "arguments": tool_call.arguments,
             "environment": "demo",
             "resource": {
-                "sensitivity": "elevated" if tool_meta and tool_meta.destructive else "normal",
-                "reversibility": "low" if tool_meta and not tool_meta.reversible else "high",
-                "external_side_effect": bool(tool_meta and tool_meta.external_side_effect),
+                "sensitivity": (
+                    "elevated" if tool_meta and tool_meta.destructive else "normal"
+                ),
+                "reversibility": (
+                    "low" if tool_meta and not tool_meta.reversible else "high"
+                ),
+                "external_side_effect": bool(
+                    tool_meta and tool_meta.external_side_effect
+                ),
                 "destructive": bool(tool_meta and tool_meta.destructive),
                 "tool_category": tool_meta.category.value if tool_meta else None,
             },
@@ -217,18 +223,22 @@ def parse_jev_decision(payload: dict[str, Any], *, default_model: str) -> JevDec
 
     return JevDecision(
         action_type=ActionType(choice),
-        action_type_confidence=float(action_conf)
-        if isinstance(action_conf, (int, float))
-        else None,
+        action_type_confidence=(
+            float(action_conf) if isinstance(action_conf, (int, float)) else None
+        ),
         action_type_probabilities=(
             {k: float(v) for k, v in action_probs.items()}
             if isinstance(action_probs, dict)
             else None
         ),
         risk_score=risk_score,
-        risk_confidence=float(risk_conf) if isinstance(risk_conf, (int, float)) else None,
+        risk_confidence=(
+            float(risk_conf) if isinstance(risk_conf, (int, float)) else None
+        ),
         risk_probabilities=(
-            {k: float(v) for k, v in risk_probs.items()} if isinstance(risk_probs, dict) else None
+            {k: float(v) for k, v in risk_probs.items()}
+            if isinstance(risk_probs, dict)
+            else None
         ),
         safe_probability=safe_probability,
         model=model,

@@ -85,7 +85,12 @@ def propose_from_request(user_request: str) -> ToolCall:
             agent_goal=user_request,
         )
 
-    if "notification" in text or "external" in text or "send" in text and "message" in text:
+    if (
+        "notification" in text
+        or "external" in text
+        or "send" in text
+        and "message" in text
+    ):
         return ToolCall(
             tool_name="send_notification",
             arguments={
@@ -116,6 +121,8 @@ def propose_from_request(user_request: str) -> ToolCall:
     return ToolCall(
         tool_name="read_file",
         arguments={"path": "project-notes.txt"},
-        agent_reasoning_summary=("No clear tool match; defaulting to read_file on project notes."),
+        agent_reasoning_summary=(
+            "No clear tool match; defaulting to read_file on project notes."
+        ),
         agent_goal=user_request,
     )

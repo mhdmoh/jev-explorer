@@ -33,4 +33,9 @@ class ExecuteDemoTaskTool(Tool):
                 "ok": False,
                 "error": f"Unknown demo task. Allowed: {sorted(ALLOWED_TASKS)}",
             }
-        return {"ok": True, "task": task, "result": ALLOWED_TASKS[task], "simulated": True}
+        return {
+            "ok": True,
+            "task": task,
+            "result": ALLOWED_TASKS[task],
+            "simulated": True,
+        }

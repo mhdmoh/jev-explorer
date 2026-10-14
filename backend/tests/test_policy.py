@@ -44,13 +44,17 @@ def test_moderate_risk_requires_confirmation() -> None:
         destructive=False,
         requires_confirmation=True,
     )
-    decision = engine.evaluate(_jev(action=ActionType.LOCAL_WRITE, risk=2.5, safe=0.75), meta)
+    decision = engine.evaluate(
+        _jev(action=ActionType.LOCAL_WRITE, risk=2.5, safe=0.75), meta
+    )
     assert decision.outcome == PolicyOutcome.REQUIRE_CONFIRMATION
 
 
 def test_high_risk_blocks() -> None:
     engine = PolicyEngine(_settings())
-    decision = engine.evaluate(_jev(action=ActionType.FILESYSTEM_DELETE, risk=4.5, safe=0.20))
+    decision = engine.evaluate(
+        _jev(action=ActionType.FILESYSTEM_DELETE, risk=4.5, safe=0.20)
+    )
     assert decision.outcome == PolicyOutcome.BLOCK
 
 

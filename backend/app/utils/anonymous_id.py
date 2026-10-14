@@ -64,7 +64,9 @@ def ensure_anonymous_id(
     if state is not None:
         cached = normalize_anonymous_id(state.get(_SESSION_KEY))
         if cached:
-            if persist_cookie and (from_cookie != cached or not state.get(_COOKIE_WRITTEN_KEY)):
+            if persist_cookie and (
+                from_cookie != cached or not state.get(_COOKIE_WRITTEN_KEY)
+            ):
                 state[_COOKIE_WRITTEN_KEY] = True
             return cached
 

@@ -89,7 +89,12 @@ class Settings(BaseSettings):
     @property
     def cookie_secure(self) -> bool:
         """Use Secure cookies outside local development."""
-        return self.app_env.strip().lower() not in {"development", "dev", "local", "test"}
+        return self.app_env.strip().lower() not in {
+            "development",
+            "dev",
+            "local",
+            "test",
+        }
 
     @field_validator("demo_workspace", mode="before")
     @classmethod
@@ -111,7 +116,11 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_allow_origins.split(",") if origin.strip()]
+        return [
+            origin.strip()
+            for origin in self.cors_allow_origins.split(",")
+            if origin.strip()
+        ]
 
     @field_validator("log_level")
     @classmethod
@@ -129,7 +138,9 @@ class Settings(BaseSettings):
     def require_jev_api_key(self) -> str:
         key = self.jev_api_key.strip()
         if not key:
-            raise ConfigError("JEV_API_KEY is not set. Copy .env.example to .env or use DEMO MODE.")
+            raise ConfigError(
+                "JEV_API_KEY is not set. Copy .env.example to .env or use DEMO MODE."
+            )
         return key
 
 
