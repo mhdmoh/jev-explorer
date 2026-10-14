@@ -8,7 +8,7 @@ import httpx
 import pytest
 from app.config.settings import Settings
 from app.jev.client import JevClient, JevClientError
-from app.jev.rate_limit import JevRateLimiter, RateLimitExceeded
+from app.jev.rate_limit import JevRateLimiter, ManualClock, RateLimitExceeded
 
 
 def _settings(**overrides: object) -> Settings:
@@ -92,6 +92,30 @@ def test_cookie_persistence_same_anonymous_bucket() -> None:
     with pytest.raises(RateLimitExceeded) as exc:
         limiter.acquire(anonymous_id=anon, client_ip=ip)
     assert exc.value.layer == "anonymous"
+
+
+def test_window_expiry_uses_the_injected_clock() -> None:
+    clock = ManualClock()
+    limiter = JevRateLimiter(
+        _settings(
+            ANONYMOUS_RATE_LIMIT_REQUESTS=1,
+            ANONYMOUS_RATE_LIMIT_WINDOW_SECONDS=10,
+            IP_RATE_LIMIT_REQUESTS=10,
+            IP_RATE_LIMIT_WINDOW_SECONDS=60,
+        ),
+        clock=clock,
+    )
+    anon = "14141414-1414-4141-8141-141414141414"
+    ip = "203.0.113.10"
+    limiter.acquire(anonymous_id=anon, client_ip=ip)
+    with pytest.raises(RateLimitExceeded):
+        limiter.acquire(anonymous_id=anon, client_ip=ip)
+    clock.advance(9)
+    with pytest.raises(RateLimitExceeded) as still:
+        limiter.acquire(anonymous_id=anon, client_ip=ip)
+    assert still.value.layer == "anonymous"
+    clock.advance(2)
+    limiter.acquire(anonymous_id=anon, client_ip=ip)
 
 
 def test_rate_limiter_disabled_never_blocks() -> None:

@@ -2,12 +2,22 @@
 
 Layer 1 — anonymous browser id (primary quota)
 Layer 2 — public client IP (abuse protection)
+
+Buckets live in this process only. The production image runs one Uvicorn
+worker (``Dockerfile`` CMD has no ``--workers``), so one limiter on
+``app.state`` covers every request that process handles. A restart clears
+the counters. Additional workers or containers would each keep a separate
+copy; this does not enforce a limit across processes.
 """
 
 from __future__ import annotations
 
+import threading
+import time
+
 from pyrate_limiter import (
     AbstractBucket,
+    AbstractClock,
     BucketFactory,
     Duration,
     InMemoryBucket,
@@ -40,12 +50,32 @@ class RateLimitExceeded(Exception):
         self.window_seconds = window_seconds
 
 
+class ManualClock(AbstractClock):
+    """Millisecond clock tests can move without sleeping.
+
+    Starts at the current epoch time. A clock parked at zero is treated as
+    already expired by pyrate's background leaker, which compares bucket
+    timestamps with a monotonic clock and would wipe the counters.
+    """
+
+    def __init__(self, now_ms: int | None = None) -> None:
+        if now_ms is None:
+            now_ms = time.time_ns() // 1_000_000
+        self.now_ms = now_ms
+
+    def now(self) -> int:
+        return self.now_ms
+
+    def advance(self, seconds: float) -> None:
+        self.now_ms += int(seconds * 1000)
+
+
 class _PerKeyBucketFactory(BucketFactory):
     """One in-memory bucket per acquire() name."""
 
-    def __init__(self, rates: list[Rate]) -> None:
+    def __init__(self, rates: list[Rate], clock: AbstractClock | None = None) -> None:
         self._rates = rates
-        self._clock = WallClock()
+        self._clock = clock or WallClock()
         self._buckets: dict[str, AbstractBucket] = {}
 
     def wrap_item(self, name: str, weight: int = 1) -> RateItem:
@@ -62,19 +92,24 @@ class _PerKeyBucketFactory(BucketFactory):
 class JevRateLimiter:
     """Limits live Jev decide calls: anonymous id + public IP abuse cap."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self, settings: Settings, clock: AbstractClock | None = None
+    ) -> None:
         self._enabled = settings.rate_limit_enabled
         self._anon_max = settings.anonymous_rate_limit_requests
         self._anon_window_s = settings.anonymous_rate_limit_window_seconds
         self._ip_max = settings.ip_rate_limit_requests
         self._ip_window_s = settings.ip_rate_limit_window_seconds
+        self._lock = threading.Lock()
 
         anon_ms = max(1, int(self._anon_window_s * Duration.SECOND))
         ip_ms = max(1, int(self._ip_window_s * Duration.SECOND))
         self._anon_limiter = Limiter(
-            _PerKeyBucketFactory([Rate(self._anon_max, anon_ms)])
+            _PerKeyBucketFactory([Rate(self._anon_max, anon_ms)], clock)
         )
-        self._ip_limiter = Limiter(_PerKeyBucketFactory([Rate(self._ip_max, ip_ms)]))
+        self._ip_limiter = Limiter(
+            _PerKeyBucketFactory([Rate(self._ip_max, ip_ms)], clock)
+        )
 
     def acquire(
         self,
@@ -91,6 +126,18 @@ class JevRateLimiter:
         if not self._enabled:
             return
 
+        # Hold this lock across both buckets so concurrent callers cannot
+        # all observe the same remaining permit. pyrate also locks each
+        # limiter; this lock makes the two-layer check one critical section.
+        with self._lock:
+            self._acquire_locked(anonymous_id=anonymous_id, client_ip=client_ip)
+
+    def _acquire_locked(
+        self,
+        *,
+        anonymous_id: str | None,
+        client_ip: str | None,
+    ) -> None:
         ip_key = _ip_bucket_key(client_ip)
         if not self._ip_limiter.try_acquire(ip_key, blocking=False):
             logger.warning(

@@ -29,6 +29,16 @@ Those three routes each send one question to `JEV_BASE_URL` and return Jev's typ
 
 `CORS_ALLOW_ORIGINS` lists allowed browser origins. The default is the Vite dev server. Do not use `*`.
 
+## Rate limits
+
+`POST /api/v1/jev/choice`, `/score`, and `/noul` share one in-memory limiter on the application. The defaults are 3 calls per anonymous browser per 18000 seconds, and 20 calls per client IP per 3600 seconds. `RATE_LIMIT_ENABLED=false` turns rejection off. A rejected call returns HTTP 429 with error code `jev_rate_limited` and does not call Jev. A missing `JEV_API_KEY` still returns 503 and does not consume a permit.
+
+The browser identity is the `jev_anon_id` cookie (`HttpOnly`, `SameSite=Lax`, `Path=/api/v1/jev`). It is set when a valid cookie is missing. Its lifetime is `ANONYMOUS_ID_COOKIE_MAX_AGE_SECONDS` (one year by default), raised to the anonymous window when that value is shorter, so the cookie does not expire before the quota window. `Secure` is set when `APP_ENV` is not a local environment, and also when a trusted proxy sends `X-Forwarded-Proto: https`.
+
+Client IP comes from the TCP peer. `X-Real-IP` and `X-Forwarded-For` are used only when that peer is inside `TRUSTED_PROXY_CIDRS` (loopback and the Docker bridge by default). Nginx must overwrite those headers with `$remote_addr`.
+
+The counters live in the Uvicorn process. The production image starts one worker and no extra replicas. A restart clears them. More than one worker would not share this limit.
+
 ## Tests
 
 ```bash
