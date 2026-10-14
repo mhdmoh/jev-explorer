@@ -52,4 +52,4 @@ demo/workspace/      Sandbox filesystem
 tests/
 ```
 
-Interactive docs: http://localhost:8000/docs. The decision explorer UI is still the connectivity screen in `../frontend`.
+Interactive docs: http://localhost:8000/docs. The decision explorer UI is in `../frontend`.

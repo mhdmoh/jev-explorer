@@ -14,17 +14,7 @@ Jev Hosted API
 
 ## Frontend
 
-The frontend is the only user-facing application. It will own:
-
-- Interaction for constructing Jev requests
-- JSON presentation of requests and responses
-- Typed response presentation
-- Visualizations of `choice`, `score`, and `noul`
-- Illustrative examples of how an application might branch on those signals
-
-Illustrative branching is application behavior. It must stay visually distinct from the actual Jev response.
-
-This phase only checks that the backend is reachable (`GET /health`). The decision explorer is not implemented yet.
+The frontend is the Jev Decision Explorer. It checks `GET /health`, then posts choice, score, and noul requests to the AgentGuard API. It shows the typed result, a visualization of the returned numbers, and the JSON body that was sent and received. It does not call Jev, store a key, run policy, or execute tools.
 
 ## Backend
 
@@ -40,9 +30,9 @@ The backend is a FastAPI application. It owns:
 
 `GET /health` confirms the process is up. It does not call Jev and does not return configuration or secrets.
 
-The existing gateway still evaluates a proposed tool call with one batched Jev `POST /api/v1/decide` (choice, score, and noul together), then applies AgentGuard policy. That path is Python library code. It is not exposed as an HTTP route in this phase.
+The gateway still evaluates a proposed tool call in Python: one batched Jev `POST /api/v1/decide`, then AgentGuard policy, then a sandboxed tool. That path is not the HTTP API below.
 
-These routes are planned and **not implemented**:
+The HTTP API exposes one primitive at a time. Each route validates the request, sends a single question to the same decide endpoint, and returns Jev's answer. It does not run policy and it does not execute a tool.
 
 ```text
 POST /api/v1/jev/choice
@@ -50,7 +40,7 @@ POST /api/v1/jev/score
 POST /api/v1/jev/noul
 ```
 
-Do not assume the hosted Jev API uses those paths. Jev's current integration target in this repository is `JEV_BASE_URL` (default `https://jevtypesafeai.com/api/v1/decide`). Confirm official request and response formats before adding the three routes.
+Jev itself does not publish those three paths. The hosted contract is `POST /api/v1/decide` with `state` plus a `questions` map. See the root README for the verified fields.
 
 ## Jev
 

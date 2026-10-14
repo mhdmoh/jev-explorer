@@ -1,5 +1,9 @@
+import { readApiError } from "./decisions.ts"
+import type { ApiErrorPayload } from "../types/decisions.ts"
+
 const DEFAULT_API_BASE_URL = "http://localhost:8000"
 const HEALTH_TIMEOUT_MS = 4000
+const DECISION_TIMEOUT_MS = 35_000
 
 export type HealthResponse = {
   status: string
@@ -7,11 +11,15 @@ export type HealthResponse = {
 
 export class ApiError extends Error {
   readonly status: number | undefined
+  readonly body: unknown
+  readonly payload: ApiErrorPayload | null
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, body?: unknown) {
     super(message)
     this.name = "ApiError"
     this.status = status
+    this.body = body
+    this.payload = readApiError(body)
   }
 }
 
@@ -69,4 +77,48 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
   }
 
   return body
+}
+
+export async function postJson(path: string, body: unknown, signal?: AbortSignal): Promise<unknown> {
+  const timeout = AbortSignal.timeout(DECISION_TIMEOUT_MS)
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout
+  let response: Response
+  try {
+    response = await fetch(apiUrl(path), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: combined,
+    })
+  } catch (error) {
+    if (signal?.aborted) {
+      throw new ApiError("The decision request was cancelled")
+    }
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new ApiError("The decision request timed out before AgentGuard responded")
+    }
+    throw new ApiError("The backend could not be reached")
+  }
+
+  const parsed = await readBody(response)
+  if (!response.ok) {
+    const payload = readApiError(parsed)
+    throw new ApiError(payload?.message ?? `Request failed (${response.status})`, response.status, parsed)
+  }
+  return parsed
+}
+
+async function readBody(response: Response): Promise<unknown> {
+  const text = await response.text()
+  if (!text) {
+    return null
+  }
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return { raw: text }
+  }
 }
