@@ -43,9 +43,11 @@ Noul needs only state and instructions. The result is a probability from 0 to 1.
 
 Submit sends `POST /api/v1/jev/choice`, `/score`, or `/noul`. The button stays disabled until that request finishes.
 
+After a response, the result panel shows the returned decision. Choice can switch between probability bars and a bar chart. Score shows the ordered scale and, when Jev returns them, the level probabilities beside it. Request JSON and Response JSON sit in two panes under the workspace. Each pane has its own copy button. The request pane shows the body the form would send, including before the first run.
+
 ## JSON inspector
 
-Request JSON is the body actually posted to AgentGuard. Response JSON is the body the backend returned, including the error envelope when a request fails. Copy puts that JSON on the clipboard. Neither panel includes headers or secrets.
+Request JSON is the body the current form would post. After a run, it matches what was sent until an input changes. Response JSON is the body the backend returned, including the error envelope when a request fails. Copy puts that pane’s JSON on the clipboard. Neither panel includes headers or secrets.
 
 ## Errors
 

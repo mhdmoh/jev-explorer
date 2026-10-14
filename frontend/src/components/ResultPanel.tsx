@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   formatExact,
   formatPercent,
@@ -7,13 +8,16 @@ import {
 import { readChoiceView, readNoulView, readScoreView } from "../lib/results.ts"
 import type { Primitive } from "../types/decisions.ts"
 
+type Option = { key: string; description: string }
+
 type Props = {
   primitive: Primitive
   phase: "idle" | "loading" | "success" | "error"
   response: unknown | null
   errorMessage: string | null
   errorDetail: string | null
-  choiceKeys: string[]
+  stale: boolean
+  choiceOptions: Option[]
   scoreLabels: string[]
 }
 
@@ -30,34 +34,57 @@ export function ResultPanel({
   response,
   errorMessage,
   errorDetail,
-  choiceKeys,
+  stale,
+  choiceOptions,
   scoreLabels,
 }: Props) {
   return (
-    <section className="result" aria-live="polite">
-      <h2>Result</h2>
-      {phase === "idle" ? <p className="hint">{INTRO[primitive]}</p> : null}
-      {phase === "loading" ? <p className="loading">Evaluating {primitive}…</p> : null}
+    <aside className="panel result" aria-labelledby="resTitle" aria-live="polite" aria-busy={phase === "loading"}>
+      <div className="p-head">
+        <h2 id="resTitle">Result</h2>
+        <div className="chips">
+          {stale ? <span className="chip warn">Inputs changed</span> : null}
+        </div>
+      </div>
+
+      {phase === "idle" ? (
+        <div className="empty">
+          <p>{INTRO[primitive]}</p>
+          <p className="hint">Nothing here is a sample result. Run the request to see Jev’s answer.</p>
+        </div>
+      ) : null}
+
+      {phase === "loading" ? (
+        <div className="loading-row">
+          <span className="spin" aria-hidden="true" />
+          <p>Evaluating {primitive}…</p>
+        </div>
+      ) : null}
+
       {phase === "error" ? (
         <div className="notice" role="alert">
           <p>{errorMessage}</p>
           {errorDetail ? <p>{errorDetail}</p> : null}
         </div>
       ) : null}
+
       {phase === "success" && primitive === "choice" ? (
-        <ChoiceResult body={response} optionKeys={choiceKeys} />
+        <ChoiceResult body={response} options={choiceOptions} />
       ) : null}
       {phase === "success" && primitive === "score" ? (
         <ScoreResult body={response} labels={scoreLabels} />
       ) : null}
       {phase === "success" && primitive === "noul" ? <NoulResult body={response} /> : null}
-    </section>
+    </aside>
   )
 }
 
-function ChoiceResult({ body, optionKeys }: { body: unknown; optionKeys: string[] }) {
+function ChoiceResult({ body, options }: { body: unknown; options: Option[] }) {
   const view = readChoiceView(body)
+  const [chart, setChart] = useState<"bars" | "columns">("bars")
   const probabilities = view.probabilities
+  const optionKeys = options.map((option) => option.key)
+  const descriptions = new Map(options.map((option) => [option.key, option.description]))
   const keys = uniqueKeys(optionKeys, probabilities ? Object.keys(probabilities) : [])
   const ranked = [...keys].sort((left, right) => {
     const a = probabilities?.[left]
@@ -68,49 +95,115 @@ function ChoiceResult({ body, optionKeys }: { body: unknown; optionKeys: string[
     return b - a
   })
   const known = new Set(optionKeys)
+  const selectedIndex = view.choice ? optionKeys.indexOf(view.choice) : -1
 
   return (
-    <div>
+    <div className="body">
       {view.warning ? <p className="notice">{view.warning}</p> : null}
-      <p className="result-kicker">Selected option</p>
-      <p className="result-value">{view.choice ?? "Unavailable"}</p>
-      {view.choice && !known.has(view.choice) ? (
-        <p className="notice">
-          This choice is not one of the options in the form. The raw value is shown unchanged.
-        </p>
-      ) : null}
-      <Meta model={view.model} confidence={view.confidence} />
-      <h3>Option probabilities</h3>
-      {probabilities ? (
-        <ul className="bars">
-          {ranked.map((key) => {
-            const value = probabilities[key]
-            return (
-              <li key={key}>
-                <div className="bar-label">
-                  <span>
-                    {key}
-                    {key === view.choice ? " · selected" : ""}
-                    {!known.has(key) ? " · not in the request" : ""}
-                  </span>
-                  <span>{value === undefined ? "No probability" : formatExact(value)}</span>
-                </div>
-                {value === undefined ? (
-                  <p className="hint">No probability was returned for this option.</p>
-                ) : (
-                  <Bar value={value} label={`${key} probability ${formatExact(value)}`} />
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      ) : (
-        <p className="hint">Probabilities were not included. Nothing was filled in for them.</p>
-      )}
-      <p className="hint">
+      <div className="hero">
+        <span className="kicker">Selected option</span>
+        <div className="pick">
+          {selectedIndex >= 0 ? (
+            <span className="idx" style={{ ["--t" as string]: 34 }} aria-hidden="true">
+              {selectedIndex + 1}
+            </span>
+          ) : null}
+          <span className="result-value">{view.choice ?? "Unavailable"}</span>
+        </div>
+        {view.choice && !known.has(view.choice) ? (
+          <p className="notice">
+            This choice is not one of the options in the form. The raw value is shown unchanged.
+          </p>
+        ) : null}
+        {view.choice && descriptions.get(view.choice) ? (
+          <p className="desc">{descriptions.get(view.choice)}</p>
+        ) : null}
+      </div>
+      <div>
+        <div className="sec-row">
+          <h3 className="sec-title">Option probabilities</h3>
+          <div className="seg" role="radiogroup" aria-label="Choice chart">
+            <label>
+              <input
+                type="radio"
+                name="choice-chart"
+                checked={chart === "bars"}
+                onChange={() => setChart("bars")}
+              />
+              Probability bars
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="choice-chart"
+                checked={chart === "columns"}
+                onChange={() => setChart("columns")}
+              />
+              Bar chart
+            </label>
+          </div>
+        </div>
+        {probabilities ? (
+          chart === "bars" ? (
+            <ul className="dist">
+              {ranked.map((key) => {
+                const value = probabilities[key]
+                const selected = key === view.choice
+                const position = optionKeys.indexOf(key)
+                return (
+                  <li key={key} className={selected ? "on" : undefined}>
+                    <span className="idx sm" style={{ ["--t" as string]: selected ? 34 : 12 }} aria-hidden="true">
+                      {position >= 0 ? position + 1 : "·"}
+                    </span>
+                    <span className="lbl">
+                      {key}
+                      {selected ? <em>selected</em> : null}
+                      {!known.has(key) ? <em>not in the request</em> : null}
+                      {descriptions.get(key) ? <small>{descriptions.get(key)}</small> : null}
+                    </span>
+                    <span className="bar" title={value === undefined ? `${key}: no probability` : `${key} probability ${formatExact(value)}`}>
+                      {value === undefined ? null : <i style={{ width: `${barWidth(value)}%` }} />}
+                    </span>
+                    <span className="pct">{value === undefined ? "—" : formatExact(value)}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <div className="chart" role="img" aria-label="Probability bar chart">
+              {keys.map((key) => {
+                const value = probabilities[key]
+                const selected = key === view.choice
+                return (
+                  <div
+                    key={key}
+                    className={selected ? "col on" : "col"}
+                    title={`${columnTitle(key, value)}${selected ? ", selected" : ""}`}
+                  >
+                    <div className="plot">
+                      <b>{value === undefined ? "—" : formatExact(value)}</b>
+                      {value === undefined ? null : (
+                        <i style={{ height: `calc((100% - 22px) * ${Math.min(1, Math.max(0, value))})` }} />
+                      )}
+                    </div>
+                    <span className="clab">{key}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        ) : (
+          <p className="hint">Probabilities were not included. Nothing was filled in for them.</p>
+        )}
+        {probabilities && Object.values(probabilities).some((value) => value < 0 || value > 1) ? (
+          <p className="hint">A probability is outside 0–1. The number is not rescaled.</p>
+        ) : null}
+      </div>
+      <p className="fine">
         Probability is the weight returned for an option. Confidence is a separate number on the
         answer. They are not interchangeable.
       </p>
+      <Meta model={view.model} confidence={view.confidence} />
     </div>
   )
 }
@@ -119,99 +212,146 @@ function ScoreResult({ body, labels }: { body: unknown; labels: string[] }) {
   const view = readScoreView(body)
   const placement = view.score === null ? null : scorePlacement(view.score, labels.length)
   const percent = view.score === null ? null : scoreTrackPercent(view.score, labels.length)
+  const last = Math.max(0, labels.length - 1)
 
   return (
-    <div>
+    <div className="body">
       {view.warning ? <p className="notice">{view.warning}</p> : null}
-      <p className="result-kicker">Score index</p>
-      <p className="result-value">{view.score === null ? "Unavailable" : formatExact(view.score)}</p>
-      {placement ? <p>{placementText(placement, labels)}</p> : null}
-      <Meta model={view.model} confidence={view.confidence} />
+      <div className="hero">
+        <span className="kicker">Score index</span>
+        <div className="bignum result-value">{view.score === null ? "Unavailable" : formatExact(view.score)}</div>
+        {placement ? <p className="sentence">{placementText(placement, labels)}</p> : null}
+      </div>
       <div
         className="scale"
         role="img"
         aria-label={
           view.score === null
             ? "Score unavailable"
-            : `Score ${formatExact(view.score)} on levels 0 through ${Math.max(0, labels.length - 1)}`
+            : `Score ${formatExact(view.score)} on levels 0 through ${last}`
         }
       >
-        <div className="scale-track">
-          {percent !== null ? <span className="scale-mark" style={{ left: `${percent}%` }} /> : null}
+        <div className="track">
+          {percent !== null ? <span className="fill" style={{ width: `${percent}%` }} /> : null}
+          {labels.length >= 2
+            ? labels.map((label, index) => {
+                const left = (index / last) * 100
+                const hit = percent !== null && left <= percent + 0.001
+                return (
+                  <span
+                    key={`${index}-${label}`}
+                    className={hit ? "tick hit" : "tick"}
+                    style={{ left: `${left}%` }}
+                  />
+                )
+              })
+            : null}
+          {percent !== null ? <span className="marker" style={{ left: `${percent}%` }} /> : null}
         </div>
-        <ol className="scale-labels">
-          {labels.map((label, index) => (
-            <li key={`${index}-${label}`}>
-              <span>{index}</span>
-              {label || "Untitled"}
-            </li>
-          ))}
-        </ol>
+        {labels.length >= 2 ? (
+          <div className="nums">
+            {labels.map((label, index) => (
+              <span key={`${index}-${label}`} style={{ left: `${(index / last) * 100}%` }}>
+                {index}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
       {placement && (placement.kind === "below" || placement.kind === "above") ? (
         <p className="notice">
           The marker stays off the scale so an out-of-range score is not pulled onto a level.
         </p>
       ) : null}
-      <h3>Legend</h3>
-      {view.legend ? (
-        <dl className="legend">
-          {Object.entries(view.legend).map(([index, label]) => (
-            <div key={index}>
-              <dt>{index}</dt>
-              <dd>{label}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : (
-        <p className="hint">Jev did not include a legend.</p>
-      )}
-      {view.probabilities ? (
-        <>
-          <h3>Level probabilities</h3>
-          <ul className="bars">
-            {Object.entries(view.probabilities).map(([index, value]) => (
+      <div>
+        <div className="sec-row">
+          <h3 className="sec-title">Legend</h3>
+        </div>
+        {view.legend ? (
+          <ul className="dist">
+            {Object.entries(view.legend).map(([index, label]) => (
               <li key={index}>
-                <div className="bar-label">
-                  <span>Index {index}</span>
-                  <span>{formatExact(value)}</span>
-                </div>
-                <Bar value={value} label={`Index ${index} probability ${formatExact(value)}`} />
+                <span className="idx sm">{index}</span>
+                <span className="lbl">{label}</span>
               </li>
             ))}
           </ul>
-        </>
-      ) : (
-        <p className="hint">Level probabilities were not included.</p>
-      )}
+        ) : (
+          <p className="hint">Jev did not include a legend.</p>
+        )}
+      </div>
+      <div>
+        <div className="sec-row">
+          <h3 className="sec-title">Where the probability sits</h3>
+        </div>
+        {view.probabilities ? (
+          <>
+            <p className="fine">These weights are not the score. The score index above is the decision.</p>
+            <ul className="dist">
+              {orderedProbabilityEntries(view.probabilities).map(([index, value]) => {
+                const label = view.legend?.[index] ?? labels[Number(index)]
+                const near =
+                  placement?.kind === "aligned"
+                    ? placement.index === Number(index)
+                    : placement?.kind === "between"
+                      ? placement.lower === Number(index) || placement.upper === Number(index)
+                      : false
+                return (
+                  <li key={index} className={near ? "on" : undefined}>
+                    <span className="idx sm">{index}</span>
+                    <span className="lbl">{label || "Untitled"}</span>
+                    <span className="bar" title={`Index ${index} probability ${formatExact(value)}`}>
+                      <i style={{ width: `${barWidth(value)}%` }} />
+                    </span>
+                    <span className="pct">{formatExact(value)}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
+        ) : (
+          <p className="hint">Level probabilities were not included. The score above is the full result.</p>
+        )}
+      </div>
+      <Meta model={view.model} confidence={view.confidence} />
     </div>
   )
 }
 
 function NoulResult({ body }: { body: unknown }) {
   const view = readNoulView(body)
-  const width = view.noul === null ? 0 : Math.min(100, Math.max(0, view.noul * 100))
+  const inRange = view.noul !== null && view.noul >= 0 && view.noul <= 1
+  const marker = inRange && view.noul !== null ? view.noul * 100 : null
 
   return (
-    <div>
+    <div className="body">
       {view.warning ? <p className="notice">{view.warning}</p> : null}
-      <p className="result-kicker">Probability the answer is yes</p>
-      <p className="result-value">{view.noul === null ? "Unavailable" : formatExact(view.noul)}</p>
-      {view.noul !== null ? <p>{formatPercent(view.noul)} for display. The decimal above is exact.</p> : null}
-      <Meta model={view.model} confidence={null} hideConfidence />
-      <div className="scale" role="img" aria-label={view.noul === null ? "noul unavailable" : `noul ${formatExact(view.noul)}`}>
-        <div className="scale-track">
-          <span className="scale-fill" style={{ width: `${width}%` }} />
+      <div className="hero">
+        <span className="kicker">Probability the answer is yes</span>
+        <div className="bignum result-value">{view.noul === null ? "Unavailable" : formatExact(view.noul)}</div>
+        {view.noul !== null ? (
+          <p className="sentence">{formatPercent(view.noul)} for display. The decimal above is exact.</p>
+        ) : null}
+      </div>
+      <div
+        className="scale gauge"
+        role="img"
+        aria-label={view.noul === null ? "noul unavailable" : `noul ${formatExact(view.noul)}`}
+      >
+        <div className="track">
+          {marker !== null ? <span className="fill" style={{ width: `${marker}%` }} /> : null}
+          {marker !== null ? <span className="marker" style={{ left: `${marker}%` }} /> : null}
         </div>
-        <div className="scale-ends">
-          <span>0</span>
-          <span>1</span>
+        <div className="nums">
+          <span style={{ left: "0%" }}>0</span>
+          <span style={{ left: "100%" }}>1</span>
         </div>
       </div>
-      <p className="hint">
+      <p className="fine">
         This is Jev’s probability, not a yes/no and not permission to act. A cutoff, if an
         application uses one, belongs to that application’s policy.
       </p>
+      <Meta model={view.model} confidence={null} hideConfidence />
     </div>
   )
 }
@@ -225,40 +365,41 @@ function Meta({
   confidence: number | null
   hideConfidence?: boolean
 }) {
+  const meter = confidence === null ? null : barWidth(confidence)
   return (
-    <p className="meta">
-      Model: {model ?? "not included"}
-      {hideConfidence ? null : (
-        <>
-          {" "}
-          · Confidence: {confidence === null ? "not included" : formatExact(confidence)}
-        </>
+    <div className="meta">
+      <span className="chip mono">{model ?? "Model not included"}</span>
+      {hideConfidence ? null : confidence === null ? (
+        <span>Confidence: not included</span>
+      ) : (
+        <span className="conf">
+          Confidence <b>{formatExact(confidence)}</b>
+          <span className="meter" aria-hidden="true">
+            <i style={{ width: `${meter}%` }} />
+          </span>
+        </span>
       )}
-    </p>
+    </div>
   )
 }
 
-function Bar({ value, label }: { value: number; label: string }) {
-  const width = Math.min(100, Math.max(0, value * 100))
-  const outside = value < 0 || value > 1
-  return (
-    <>
-      <div className="bar" role="img" aria-label={label}>
-        <span style={{ width: `${width}%` }} />
-      </div>
-      {outside ? <p className="hint">This probability is outside 0–1. The number is not rescaled.</p> : null}
-    </>
-  )
+function barWidth(value: number): number {
+  return Math.min(100, Math.max(0, value * 100))
+}
+
+function columnTitle(key: string, value: number | undefined): string {
+  return value === undefined ? `${key}: no probability` : `${key} probability ${formatExact(value)}`
 }
 
 function uniqueKeys(first: string[], second: string[]): string[] {
   return [...new Set([...first, ...second])]
 }
 
-function placementText(
-  placement: ReturnType<typeof scorePlacement>,
-  labels: string[],
-): string {
+function orderedProbabilityEntries(probabilities: Record<string, number>): [string, number][] {
+  return Object.entries(probabilities).sort((left, right) => Number(left[0]) - Number(right[0]))
+}
+
+function placementText(placement: ReturnType<typeof scorePlacement>, labels: string[]): string {
   if (placement.kind === "aligned") {
     const label = labels[placement.index] ?? "untitled"
     return `Aligns with index ${placement.index} (${label}).`

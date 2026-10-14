@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { formatJson } from "../lib/decisions.ts"
+import { Icon } from "./Icon.tsx"
 
 type Props = {
   request: unknown | null
@@ -9,63 +10,116 @@ type Props = {
 export function JsonPanel({ request, response }: Props) {
   const [copied, setCopied] = useState<"request" | "response" | null>(null)
 
-  async function copy(kind: "request" | "response", value: unknown) {
+  async function copy(kind: "request" | "response", value: unknown | null) {
+    if (value === null) {
+      return
+    }
     try {
       await navigator.clipboard.writeText(formatJson(value))
       setCopied(kind)
+      window.setTimeout(() => setCopied((current) => (current === kind ? null : current)), 1600)
     } catch {
       setCopied(null)
     }
   }
 
   return (
-    <div className="json-grid">
-      <JsonBlock
+    <section className="console" aria-label="Request and response JSON">
+      <JsonPane
         title="Request JSON"
-        empty="The request body appears here after you run a decision."
+        codeId="request-json"
         value={request}
+        empty="The request appears here when the form is valid."
         copied={copied === "request"}
-        onCopy={() => copy("request", request)}
+        onCopy={() => void copy("request", request)}
       />
-      <JsonBlock
+      <JsonPane
         title="Response JSON"
-        empty="The AgentGuard response appears here, including error JSON."
+        codeId="response-json"
         value={response}
+        empty="The AgentGuard response appears here, including error JSON."
         copied={copied === "response"}
-        onCopy={() => copy("response", response)}
+        onCopy={() => void copy("response", response)}
       />
-    </div>
+    </section>
   )
 }
 
-function JsonBlock({
+function JsonPane({
   title,
-  empty,
+  codeId,
   value,
+  empty,
   copied,
   onCopy,
 }: {
   title: string
-  empty: string
+  codeId: string
   value: unknown | null
+  empty: string
   copied: boolean
   onCopy: () => void
 }) {
   return (
-    <section className="json-block">
-      <div className="json-head">
+    <div className="code-panel">
+      <div className="code-head">
         <h3>{title}</h3>
-        <button type="button" disabled={value === null} onClick={onCopy}>
-          {copied ? "Copied" : "Copy"}
+        <button type="button" className="copy" disabled={value === null} onClick={onCopy}>
+          <Icon name={copied ? "check" : "copy"} size={14} />
+          <span>{copied ? "Copied" : "Copy"}</span>
         </button>
       </div>
       {value === null ? (
-        <p className="hint">{empty}</p>
+        <p className="code-empty">{empty}</p>
       ) : (
         <pre tabIndex={0}>
-          <code>{formatJson(value)}</code>
+          <code id={codeId}>{highlightJson(formatJson(value))}</code>
         </pre>
       )}
-    </section>
+    </div>
   )
+}
+
+function highlightJson(json: string): ReactNode[] {
+  const nodes: ReactNode[] = []
+  const pattern =
+    /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g
+  let last = 0
+  let index = 0
+  for (const match of json.matchAll(pattern)) {
+    const start = match.index
+    if (start > last) {
+      nodes.push(json.slice(last, start))
+    }
+    if (match[1]) {
+      nodes.push(
+        <span key={index} className={match[2] ? "k" : "s"}>
+          {match[1]}
+        </span>,
+      )
+      index += 1
+      if (match[2]) {
+        nodes.push(match[2])
+      }
+    } else if (match[3]) {
+      nodes.push(
+        <span key={index} className="n">
+          {match[3]}
+        </span>,
+      )
+      index += 1
+    } else {
+      nodes.push(
+        <span key={index} className="n">
+          {match[0]}
+        </span>,
+      )
+      index += 1
+    }
+    last = start + match[0].length
+  }
+  if (last < json.length) {
+    nodes.push(json.slice(last))
+  }
+  return nodes
 }

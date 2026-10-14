@@ -66,7 +66,7 @@ describe("Explorer", () => {
     })
     await renderExplorer()
     await user.click(screen.getByRole("button", { name: "Run choice" }))
-    expect(await screen.findByText("billing")).toBeTruthy()
+    expect(await screen.findByText("billing", { selector: ".result-value" })).toBeTruthy()
     const calls = decisionCalls(fetchMock)
     expect(calls).toHaveLength(1)
     const sent = JSON.parse(String(calls[0]?.[1]?.body))
@@ -79,8 +79,8 @@ describe("Explorer", () => {
         account: "login or access",
       },
     })
-    expect(screen.getByText(/"choice": "billing"/)).toBeTruthy()
-    expect(screen.getByText(/"criteria"/)).toBeTruthy()
+    expect(document.querySelector("#request-json")?.textContent).toContain('"criteria"')
+    expect(document.querySelector("#response-json")?.textContent).toContain('"choice": "billing"')
   })
 
   it("does not call the API for malformed JSON state", async () => {
@@ -91,8 +91,8 @@ describe("Explorer", () => {
     const input = screen.getByLabelText("State JSON")
     await user.clear(input)
     await user.type(input, "{{")
-    await user.click(screen.getByRole("button", { name: "Run choice" }))
     expect(screen.getByText(/State JSON is not valid/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Run choice" }).hasAttribute("disabled")).toBe(true)
     expect(decisionCalls(fetchMock)).toHaveLength(0)
   })
 
@@ -103,8 +103,8 @@ describe("Explorer", () => {
     const keys = screen.getAllByRole("textbox", { name: "Key" })
     await user.clear(keys[1]!)
     await user.type(keys[1]!, "billing")
-    await user.click(screen.getByRole("button", { name: "Run choice" }))
     expect(screen.getAllByText(/unique/i).length).toBeGreaterThan(0)
+    expect(screen.getByRole("button", { name: "Run choice" }).hasAttribute("disabled")).toBe(true)
     expect(decisionCalls(fetchMock)).toHaveLength(0)
   })
 
@@ -122,13 +122,13 @@ describe("Explorer", () => {
     await renderExplorer()
     await user.click(screen.getByRole("radio", { name: /Score/ }))
     await user.click(screen.getByRole("button", { name: "Run score" }))
-    expect(await screen.findByText("2.97")).toBeTruthy()
+    expect(await screen.findByText("2.97", { selector: ".result-value" })).toBeTruthy()
     expect(screen.getByText(/Between index 2/)).toBeTruthy()
     expect(screen.getByText("Jev did not include a legend.")).toBeTruthy()
     expect(screen.getByText(/Confidence: not included/)).toBeTruthy()
     score = 10.5
     await user.click(screen.getByRole("button", { name: "Run score" }))
-    expect(await screen.findByText("10.5")).toBeTruthy()
+    expect(await screen.findByText("10.5", { selector: ".result-value" })).toBeTruthy()
     expect(screen.getByText(/Above index 3/)).toBeTruthy()
   })
 
@@ -160,7 +160,7 @@ describe("Explorer", () => {
     await user.click(screen.getByRole("button", { name: "Run choice" }))
     expect(await screen.findByRole("alert")).toHaveProperty("textContent")
     expect((await screen.findByRole("alert")).textContent ?? "").toMatch(pattern)
-    expect(screen.getByText(new RegExp(`"${code}"`))).toBeTruthy()
+    expect(document.querySelector("#response-json")?.textContent ?? "").toContain(`"${code}"`)
   })
 
   it("disables submit while a request is in flight", async () => {
@@ -185,6 +185,6 @@ describe("Explorer", () => {
         probabilities: { billing: 0, bug: 1, account: 0 },
       }),
     )
-    expect(await screen.findByText("bug")).toBeTruthy()
+    expect(await screen.findByText("bug", { selector: ".result-value" })).toBeTruthy()
   })
 })
