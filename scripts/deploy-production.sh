@@ -8,12 +8,15 @@
 #   ./scripts/deploy-production.sh
 #
 # Does NOT overwrite remote /opt/apps/<project>/production/.env
-# Does NOT copy or delete /opt/apps/agentguard
-# Does NOT run Certbot or change DNS or Nginx.
+# Does NOT create that env file, print its values, or change DNS or Nginx.
 #
-# First cutover: create /opt/apps/jev-explorer/production/.env on the server
-# by copying the existing AgentGuard env file. This script only checks that
-# the destination exists and that the JEV_API_KEY name is present.
+# The env file must already exist at /opt/apps/jev-explorer/production/.env
+# and contain a JEV_API_KEY= line. This script only checks that. It does not
+# read a retired deployment's env file.
+#
+# LEGACY_CONTAINER_NAME is consulted only when a container of that name is
+# still present and published on HOST_PORT. The retired AgentGuard container
+# is not on the current server, so that branch does not restore service.
 
 set -euo pipefail
 
@@ -28,7 +31,7 @@ if [[ -f "${SCRIPT_DIR}/deploy.config" ]]; then
 fi
 
 PROJECT_NAME="${PROJECT_NAME:-jev-explorer}"
-SSH_HOST="${SSH_HOST:-mhdmoh-server}"
+SSH_HOST="${SSH_HOST:-}"
 DOMAIN="${DOMAIN:-}"
 HOST_PORT="${HOST_PORT:-8510}"
 CONTAINER_PORT="${CONTAINER_PORT:-8000}"
@@ -40,8 +43,6 @@ CONTAINER_NAME="${CONTAINER_NAME:-${PROJECT_NAME}-production}"
 CANDIDATE_NAME="${CONTAINER_NAME}-candidate"
 CANDIDATE_PORT="${CANDIDATE_PORT:-$((HOST_PORT + 1))}"
 LEGACY_CONTAINER_NAME="${LEGACY_CONTAINER_NAME:-agentguard-production}"
-LEGACY_ENV_FILE="${LEGACY_ENV_FILE:-/opt/apps/agentguard/production/.env}"
-LEGACY_WORKSPACE="${LEGACY_WORKSPACE:-/opt/apps/agentguard/production/workspace}"
 
 LEGACY_PRESENT=0
 LEGACY_STOPPED=0
@@ -102,6 +103,7 @@ IMAGE_TAG="${PROJECT_NAME}:production-${GIT_SHA}"
 IMAGE_LATEST="${PROJECT_NAME}:production"
 
 [[ -n "${DOMAIN}" ]] || die "DOMAIN is required (set in scripts/deploy.config or environment)"
+[[ -n "${SSH_HOST}" ]] || die "SSH_HOST is required (set in scripts/deploy.config or environment)"
 [[ "${CONTAINER_PORT}" == "8000" ]] || die "CONTAINER_PORT must be 8000. The image listens on 8000; the previous AgentGuard image may listen on 8501 and is not restarted with this mapping."
 require_cmd docker
 require_cmd ssh
@@ -131,9 +133,9 @@ remote 'echo ok' >/dev/null || die "Cannot SSH to ${SSH_HOST}. Fix SSH config / 
 log "Checking remote env file exists before any container is stopped…"
 log "This script does not create, print, or overwrite ${REMOTE_ENV_FILE}."
 remote "test -s '${REMOTE_ENV_FILE}'" \
-  || die "Missing ${REMOTE_ENV_FILE} on server. Copy ${LEGACY_ENV_FILE} to that path first. ${LEGACY_CONTAINER_NAME} is still untouched."
+  || die "Missing ${REMOTE_ENV_FILE} on server. Place that env file on the server before deploying. This script does not create or print it. No container was stopped."
 remote "grep -qE '^(export[[:space:]]+)?JEV_API_KEY=' '${REMOTE_ENV_FILE}'" \
-  || die "Remote env file has no JEV_API_KEY entry. The value may be empty. The value was not printed. ${LEGACY_CONTAINER_NAME} is still untouched."
+  || die "Remote env file has no JEV_API_KEY entry. The value may be empty. The value was not printed. No container was stopped."
 
 # ── Local validation ───────────────────────────────────
 if [[ "${SKIP_TESTS}" != "1" ]]; then
@@ -339,9 +341,10 @@ Useful commands:
   ssh ${SSH_HOST} 'curl -fsS http://127.0.0.1:${HOST_PORT}/health'
   curl -I https://${DOMAIN}/
 
-The legacy container, image, env file, and workspace were not deleted.
-If a later check shows the new site is wrong, free port ${HOST_PORT} and start the stopped container.
-docker start restores its original publish, env, and workspace. Do not run the legacy image on container port ${CONTAINER_PORT}.
-  ssh ${SSH_HOST} 'docker rm -f ${CONTAINER_NAME} && docker start ${LEGACY_CONTAINER_NAME}'
+After this script exits, a later failure is not rolled back automatically.
+The previous image reference above is kept when it is a ${PROJECT_NAME}:production-* tag.
+A candidate failure leaves the current production container in place.
+A cutover failure restarts that previous image when one was recorded.
+Do not expect a retired container to restore this service.
 ────────────────────────────────────────
 EOF

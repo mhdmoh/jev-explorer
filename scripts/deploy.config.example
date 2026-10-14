@@ -1,18 +1,11 @@
 # Copy to scripts/deploy.config (gitignored) or export these before deploying.
-# Do not put secrets here — production secrets live on the server .env.
-#
-# The server env file is /opt/apps/jev-explorer/production/.env.
-# Create it by copying the existing AgentGuard env file. Do not commit the copy.
-# The script does not create, print, or overwrite that file.
+# Do not put secrets here. Production secrets live only in the server env file
+# /opt/apps/jev-explorer/production/.env. Create that file on the server.
+# The script does not create, print, or overwrite it.
 
 PROJECT_NAME=jev-explorer
-SSH_HOST=mhdmoh-server
+SSH_HOST=your-ssh-alias
 DOMAIN=jev-explorer.mhdmoh.com
 HOST_PORT=8510
 CONTAINER_PORT=8000
 SKIP_TESTS=0
-
-# Stopped only long enough to free port 8510. Restored with `docker start`
-# if the new container fails. Left stopped after a healthy cutover so it can
-# be started again. Its image, env file, and workspace are not deleted.
-LEGACY_CONTAINER_NAME=agentguard-production

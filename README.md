@@ -66,21 +66,30 @@ Backend and frontend configuration are separate. Real `.env` files are gitignore
 | `JEV_API_KEY` | backend | Optional. Enables live Jev. Never expose this to the browser. |
 | `JEV_MODEL` | backend | Default `jev-1.13.0` |
 | `JEV_BASE_URL` | backend | Default `https://jevtypesafeai.com/api/v1/decide` |
-| `JEV_TIMEOUT_SECONDS` | backend | HTTP timeout for Jev |
-| `APP_ENV` | backend | `development` uses non-secure cookie settings |
-| `LOG_LEVEL` | backend | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
-| `POLICY_VERSION` | backend | Policy version label |
-| `DEMO_WORKSPACE` | backend | Sandbox root, default `demo/workspace` |
-| `AUTO_EXECUTE_*`, `CONFIRM_*`, `BLOCK_MIN_RISK` | backend | Policy thresholds |
-| `RATE_LIMIT_ENABLED` | backend | Limit live Jev calls (default `true`) |
-| `ANONYMOUS_RATE_LIMIT_REQUESTS` | backend | Max live decide calls per anonymous id (default `3`) |
-| `ANONYMOUS_RATE_LIMIT_WINDOW_SECONDS` | backend | Anonymous window (default `18000` = 5 hours) |
-| `IP_RATE_LIMIT_REQUESTS` | backend | Max live decide calls per public IP (default `20`) |
-| `IP_RATE_LIMIT_WINDOW_SECONDS` | backend | IP window (default `3600`) |
-| `TRUSTED_PROXY_CIDRS` | backend | Peers allowed to set `X-Real-IP` / `X-Forwarded-For` |
-| `CORS_ALLOW_ORIGINS` | backend | Comma-separated browser origins. Do not use `*`. The production UI is same-origin and does not need its public URL in this list. |
+| `JEV_TIMEOUT_SECONDS` | backend | HTTP timeout for Jev, in seconds. Default `30`. |
+| `APP_ENV` | backend | Default `development`. Values `development`, `dev`, `local`, and `test` leave the anonymous cookie non-`Secure` unless a trusted proxy sends `X-Forwarded-Proto: https`. Any other value sets `Secure`. |
+| `LOG_LEVEL` | backend | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. Default `INFO`. |
+| `POLICY_VERSION` | backend | Policy version label. Default `1.0`. |
+| `DEMO_WORKSPACE` | backend | Sandbox root. Default `demo/workspace` under the backend directory. |
+| `AUTO_EXECUTE_MAX_RISK` | backend | Default `2.0` |
+| `AUTO_EXECUTE_MIN_SAFE` | backend | Default `0.90` |
+| `CONFIRM_MAX_RISK` | backend | Default `3.0` |
+| `CONFIRM_MIN_SAFE` | backend | Default `0.50` |
+| `BLOCK_MIN_RISK` | backend | Default `4.0` |
+| `RATE_LIMIT_ENABLED` | backend | When `true` (the default), live Jev calls use the limits below. `false` does not reject requests for rate. |
+| `ANONYMOUS_RATE_LIMIT_REQUESTS` | backend | Max live decide calls per anonymous id. Default `3`. |
+| `ANONYMOUS_RATE_LIMIT_WINDOW_SECONDS` | backend | Anonymous window in seconds. Default `18000` (5 hours). |
+| `IP_RATE_LIMIT_REQUESTS` | backend | Max live decide calls per client IP. Default `20`. |
+| `IP_RATE_LIMIT_WINDOW_SECONDS` | backend | IP window in seconds. Default `3600`. |
+| `ANONYMOUS_ID_COOKIE_MAX_AGE_SECONDS` | backend | `jev_anon_id` lifetime in seconds. Default `31536000` (one year). The server raises a shorter value up to the anonymous window. |
+| `TRUSTED_PROXY_CIDRS` | backend | Comma-separated CIDRs whose TCP peers may supply `X-Real-IP` and `X-Forwarded-For`. Default `127.0.0.0/8,::1/128,172.16.0.0/12`. |
+| `CORS_ALLOW_ORIGINS` | backend | Comma-separated browser origins. Do not use `*`. Default `http://localhost:5173,http://127.0.0.1:5173`. The production UI is same-origin and does not need its public URL in this list. |
 
-Without `JEV_API_KEY`, gateway evaluations use deterministic demo signals. Those signals are not live Jev results. The health check does not need a key and does not call Jev.
+`JEV_API_KEY` stays in the server environment. Do not put it in the frontend, a `VITE_` variable, or a committed file. `backend/.env` and `scripts/deploy.config` are gitignored. The committed examples use empty or placeholder values.
+
+Without `JEV_API_KEY`, gateway evaluations use deterministic demo signals. Those signals are not live Jev results. The health check does not need a key and does not call Jev. The three decision routes return `503` with `jev_not_configured` and do not consume a rate-limit permit.
+
+The decision routes share one in-memory limiter in the Uvicorn process. The production image starts a single process and no extra workers, so that one copy covers the container. A restart clears the counters. Another worker or container would keep its own copy. A browser that drops `jev_anon_id` receives a new anonymous id; the IP bucket still applies. The cookie is `HttpOnly`, `SameSite=Lax`, and `Path=/api/v1/jev`. Nginx in front of the app must overwrite `X-Real-IP` and `X-Forwarded-For` with `$remote_addr`. A peer outside `TRUSTED_PROXY_CIDRS` cannot choose its IP bucket by sending those headers.
 
 ## Checks
 
@@ -188,11 +197,11 @@ Failed requests use `{"error": {"code": "...", "message": "..."}}`. Validation e
 | HTTP | `code` | When |
 | --- | --- | --- |
 | 422 | `validation_error` | The JSON does not match the route's schema. Jev is not called. |
-| 429 | `jev_rate_limited` | The existing anonymous-id or client-IP budget is exhausted. |
+| 429 | `jev_rate_limited` | The anonymous-id or client-IP budget is exhausted. Jev is not called. |
 | 502 | `jev_upstream_error` | Jev responded with an HTTP error. |
 | 502 | `jev_network_error` | The connection to Jev failed. |
 | 502 | `jev_invalid_response` | The body was not the documented decision shape. |
-| 503 | `jev_not_configured` | `JEV_API_KEY` is missing. The process still starts, and `/health` still works. |
+| 503 | `jev_not_configured` | `JEV_API_KEY` is missing. The process still starts, `/health` still works, and the rate-limit counters are not incremented. |
 | 504 | `jev_timeout` | Jev did not answer within `JEV_TIMEOUT_SECONDS`. |
 | 500 | `internal_error` | Unexpected server failure. The body has no traceback. |
 
@@ -232,11 +241,13 @@ User request → Agent → Proposed tool call → Jev Explorer
 | `backend/app/execution/` | Run tools only after policy (and optional approval) |
 | `frontend/` | User interface |
 
-Policy defaults are in `backend/.env.example`. Live Jev calls use two rate-limit layers: per anonymous id, and per public IP. Demo mode does not consume that budget.
+Policy defaults are in `backend/.env.example`. Live Jev calls use two rate-limit layers: per anonymous id, and per client IP. Demo mode does not consume that budget. The counters are in memory for the one Uvicorn process and reset when that process restarts.
 
 A longer write-up of the original experiment is in [docs/case-study.md](docs/case-study.md).
 
 ## Production
+
+The project was previously called AgentGuard. The running production container is `jev-explorer-production`. This repository does not keep a way to start the retired deployment.
 
 One image, built from the repository root, serves the compiled UI and the API:
 
@@ -246,55 +257,58 @@ Browser → Nginx (https://jev-explorer.mhdmoh.com)
        → container port 8000
 ```
 
-`GET /` is the explorer. `GET /health` stays the liveness check and does not call Jev. Decision routes stay `POST /api/v1/jev/choice`, `/score`, and `/noul`.
+`GET /` is the explorer. `GET /health` is the liveness check and does not call Jev. Decision routes stay `POST /api/v1/jev/choice`, `/score`, and `/noul`.
+
+Build from the repository root. The runtime stage does not include Node. `JEV_API_KEY` is not a build argument.
 
 ```bash
 docker build --platform linux/amd64 -f Dockerfile -t jev-explorer:local .
 ```
 
-The runtime image does not include Node. `JEV_API_KEY` is not a build argument. It belongs in the server env file `/opt/apps/jev-explorer/production/.env`.
+The image listens on port 8000. Its Docker `HEALTHCHECK` requests `http://127.0.0.1:8000/health` inside the container.
 
-`scripts/deploy-production.sh` builds that image, loads it on the droplet over SSH, starts a candidate on port 8511, and checks `/health`, the HTML page, the asset files, and that an unknown API path is JSON. It then binds `127.0.0.1:8510` to container port 8000.
+`scripts/deploy-production.sh` is the deploy path. Copy the example config, set the SSH host and domain, and keep `CONTAINER_PORT=8000`:
 
-`PROJECT_NAME=jev-explorer` selects these remote paths. The script does not create or overwrite the env file, and it checks that the file exists before it stops anything:
+```bash
+cp scripts/deploy.config.example scripts/deploy.config
+# scripts/deploy.config is gitignored. Set SSH_HOST to your own SSH alias.
+./scripts/deploy-production.sh
+```
+
+With `PROJECT_NAME=jev-explorer` the script uses:
 
 - App directory: `/opt/apps/jev-explorer/production`
 - Env file: `/opt/apps/jev-explorer/production/.env`
 - Workspace: `/opt/apps/jev-explorer/production/workspace`
 - Container: `jev-explorer-production`
+- Image tag: `jev-explorer:production-<12-character git sha>`
 
-Before the first deploy, on the server:
+The env file must already be on the server. The script checks that the file is non-empty and contains a `JEV_API_KEY=` line before it stops any container. It does not create, print, or overwrite that file. Create the directory if needed, then place the env file there yourself:
 
 ```bash
-sudo mkdir -p /opt/apps/jev-explorer/production
-sudo cp -a /opt/apps/agentguard/production/.env /opt/apps/jev-explorer/production/.env
-sudo cp -a /opt/apps/agentguard/production/workspace /opt/apps/jev-explorer/production/workspace
+ssh <your-ssh-alias> 'sudo mkdir -p /opt/apps/jev-explorer/production'
 ```
 
-Skip the workspace copy if a new seeded workspace is enough. The script leaves an existing `project-notes.txt` alone. It does not delete `/opt/apps/agentguard`.
+Unless `SKIP_TESTS=1`, the script runs the backend tests and Ruff check, then the frontend tests, lint, and build. It builds the image for `linux/amd64`, saves that sha tag, and loads it on the server over SSH. It creates the remote app and workspace directories if they are missing. If `project-notes.txt` is absent, it copies the image's demo workspace into the server workspace once. An existing workspace file is left in place.
 
-The old container `agentguard-production` is stopped only to free port 8510. `docker start` brings it back with the port mapping, env file, and workspace it already had. The script does not run that image on container port 8000. After a healthy cutover the container stays stopped until you remove it yourself.
+It then starts `jev-explorer-production-candidate` on `127.0.0.1:8511` (host port plus one) and maps that to container port 8000. The candidate must pass `/health`, then a smoke check: the health body is JSON, `GET /` contains `id="root"`, referenced `/assets/` files are not HTML, an unknown `/api/v1/jev/` path returns JSON 404, and `POST /api/v1/jev/choice` with `{}` returns `422` and `validation_error`. Only after that does it remove the candidate and start `jev-explorer-production` on `127.0.0.1:8510`.
 
-If cutover fails, the script removes the new container and starts `agentguard-production` again. If the new container is already up and a later check looks wrong, stop it first so port 8510 is free, then start the legacy container:
-
-```bash
-ssh mhdmoh-server 'docker rm -f jev-explorer-production && docker start agentguard-production'
-```
-
-Local `scripts/deploy.config` must set `CONTAINER_PORT=8000`. The image listens on 8000.
-
-`deploy/nginx/jev-explorer.conf.template` is only a template in this repository. It is not the live Nginx config. On the droplet, confirm the server block for `jev-explorer.mhdmoh.com` proxies to `127.0.0.1:8510`:
+The script does not install Nginx, change DNS, or run Certbot. `deploy/nginx/jev-explorer.conf.template` is a template in this repository, not the live server config. Confirm the live block for `jev-explorer.mhdmoh.com` proxies to `127.0.0.1:8510`, and that it sets `X-Real-IP`, `X-Forwarded-For`, and `X-Forwarded-Proto` from the immediate connection:
 
 ```bash
-ssh mhdmoh-server 'sudo nginx -T' | awk '
+ssh <your-ssh-alias> 'sudo nginx -T' | awk '
   /server_name[[:space:]]+jev-explorer\.mhdmoh\.com/ {show=1}
   show {print}
   show && /^[[:space:]]*}/ {show=0}
 '
-ssh mhdmoh-server 'curl -fsS http://127.0.0.1:8510/health'
+ssh <your-ssh-alias> 'curl -fsS http://127.0.0.1:8510/health'
 ```
 
-The `proxy_pass` or upstream in that block must be `127.0.0.1:8510`. This repository cannot show whether that is already true.
+This repository cannot show the live Nginx config.
+
+If the candidate fails, the script removes the candidate and leaves the current production container running. If failure happens after cutover has started, it removes the new production container. When the container that was running before this deploy recorded an image, the script starts that image again on `127.0.0.1:8510`. A public HTTPS check runs after a successful cutover and does not roll back. Once the script exits successfully, a later failure is not rolled back automatically. After success it deletes older `jev-explorer:production-*` tags and keeps the tag just deployed plus the previous image reference.
+
+The script still has a branch that stops a container named `agentguard-production` when that container is present and published on the host port, then tries `docker start` on it if cutover fails. That container and its image are no longer on the server, so that branch does not restore service. Do not treat it as a rollback.
 
 ## Limitations
 
@@ -302,3 +316,4 @@ The `proxy_pass` or upstream in that block must be `127.0.0.1:8510`. This reposi
 - Not a production security boundary
 - Jev signals are not correctness guarantees
 - The explorer demonstrates the three decision APIs. It does not run policy or tools.
+- Rate-limit counters are per process, in memory, and reset when the container restarts
