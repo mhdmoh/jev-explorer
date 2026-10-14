@@ -6,11 +6,10 @@ React + TypeScript + Vite app for the Jev Decision Explorer. It calls the Jev Ex
 
 ```bash
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open http://localhost:5173. The dev server proxies `/health` and `/api` to http://127.0.0.1:8000.
 
 Start the backend in another terminal:
 
@@ -24,7 +23,7 @@ The header status comes from `GET /health`. It can read "Backend connected" when
 
 ## API URL
 
-`VITE_API_BASE_URL` is the Jev Explorer origin. It defaults to `http://localhost:8000`. Copy `.env.example` to `.env` to override it. Do not put `JEV_API_KEY` or any other secret in a `VITE_` variable.
+The explorer calls same-origin paths: `/health`, `/api/v1/jev/choice`, `/score`, and `/noul`. Production serves the built page from FastAPI, so those paths hit the API on `https://jev-explorer.mhdmoh.com`. There is no API origin baked into the bundle. Do not put `JEV_API_KEY` or any other secret in a frontend env file.
 
 ## Using the explorer
 

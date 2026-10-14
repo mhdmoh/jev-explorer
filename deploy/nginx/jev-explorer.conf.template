@@ -1,4 +1,7 @@
-# Nginx site template for Jev Explorer
+# Nginx site template for Jev Explorer.
+# This file is not installed by the deploy script and is not the live server config.
+# Intended public host: jev-explorer.mhdmoh.com → 127.0.0.1:8510.
+# The container listens on 8000. Confirm the live proxy with `sudo nginx -T`.
 # Copy to the server (e.g. /etc/nginx/sites-available/jev-explorer) and replace:
 #   __DOMAIN__      public hostname
 #   __HOST_PORT__   local Docker published port (e.g. 8510)

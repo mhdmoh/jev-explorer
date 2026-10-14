@@ -5,12 +5,17 @@ Jev Explorer sits between a browser and the hosted Jev API. The browser never se
 ```text
 Browser
    |
-React + TypeScript + Vite
-   | HTTP / JSON
-Jev Explorer Backend API
+https://jev-explorer.mhdmoh.com
+   |
+Nginx → 127.0.0.1:8510
+   |
+One container, port 8000
+   FastAPI serves the built UI and /api/v1/jev/*
    | authenticated server-side request
 Jev Hosted API
 ```
+
+Local development still runs Vite on port 5173. That dev server proxies `/health` and `/api` to the API on port 8000. The browser calls relative paths in both environments.
 
 ## Frontend
 
@@ -53,4 +58,4 @@ Jev returns typed decisions for the primitives it supports: `choice`, `score`, a
 - `http://localhost:5173`
 - `http://127.0.0.1:5173`
 
-Wildcard origins are rejected. Production should list the real frontend origin and nothing else.
+Wildcard origins are rejected. Production serves the UI from the API origin, so the browser does not rely on CORS for the explorer. Keep this list limited to the local Vite origins unless another origin must call the API directly.

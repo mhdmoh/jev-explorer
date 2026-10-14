@@ -21,14 +21,15 @@ Splitting them keeps the API key off the browser and lets the UI and API change 
 ## Repository structure
 
 ```text
+Dockerfile               Frontend build plus API runtime
 backend/                 FastAPI app, Jev client, policy, tests
   app/
   tests/
   demo/workspace/        Sandbox filesystem
 frontend/                React + TypeScript + Vite
 docs/architecture.md
-deploy/                  Existing Nginx site template
-scripts/                 Existing production deploy script
+deploy/                  Nginx site template
+scripts/                 Production deploy script
 ```
 
 ## Backend
@@ -51,13 +52,10 @@ In a second terminal:
 ```bash
 cd frontend
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-The dev server is http://localhost:5173. The Jev Decision Explorer checks `GET /health`, then lets you run choice, score, and noul against the Jev Explorer API. See `frontend/README.md` for the fields and error messages.
-
-`VITE_API_BASE_URL` defaults to `http://localhost:8000` when `.env` is absent. The backend allows that Vite origin through `CORS_ALLOW_ORIGINS`.
+The dev server is http://localhost:5173. It proxies `/health` and `/api` to http://127.0.0.1:8000. The page calls those paths on the same origin. See `frontend/README.md` for the fields and error messages.
 
 ## Environment variables
 
@@ -80,8 +78,7 @@ Backend and frontend configuration are separate. Real `.env` files are gitignore
 | `IP_RATE_LIMIT_REQUESTS` | backend | Max live decide calls per public IP (default `20`) |
 | `IP_RATE_LIMIT_WINDOW_SECONDS` | backend | IP window (default `3600`) |
 | `TRUSTED_PROXY_CIDRS` | backend | Peers allowed to set `X-Real-IP` / `X-Forwarded-For` |
-| `CORS_ALLOW_ORIGINS` | backend | Comma-separated browser origins. Do not use `*`. |
-| `VITE_API_BASE_URL` | frontend | Backend origin, default `http://localhost:8000` |
+| `CORS_ALLOW_ORIGINS` | backend | Comma-separated browser origins. Do not use `*`. The production UI is same-origin and does not need its public URL in this list. |
 
 Without `JEV_API_KEY`, gateway evaluations use deterministic demo signals. Those signals are not live Jev results. The health check does not need a key and does not call Jev.
 
@@ -239,9 +236,65 @@ Policy defaults are in `backend/.env.example`. Live Jev calls use two rate-limit
 
 A longer write-up of the original experiment is in [docs/case-study.md](docs/case-study.md).
 
-## Existing production deploy
+## Production
 
-`scripts/deploy-production.sh` builds the API image from `backend/` and expects the process to listen on container port `8000`. Health checks call `GET /health`. Nginx site config is in `deploy/nginx/jev-explorer.conf.template`. This phase does not add new deployment tooling. If a local `scripts/deploy.config` still sets `CONTAINER_PORT=8501`, change it to `8000` before the next deploy.
+One image, built from the repository root, serves the compiled UI and the API:
+
+```text
+Browser → Nginx (https://jev-explorer.mhdmoh.com)
+       → 127.0.0.1:8510
+       → container port 8000
+```
+
+`GET /` is the explorer. `GET /health` stays the liveness check and does not call Jev. Decision routes stay `POST /api/v1/jev/choice`, `/score`, and `/noul`.
+
+```bash
+docker build --platform linux/amd64 -f Dockerfile -t jev-explorer:local .
+```
+
+The runtime image does not include Node. `JEV_API_KEY` is not a build argument. It belongs in the server env file `/opt/apps/jev-explorer/production/.env`.
+
+`scripts/deploy-production.sh` builds that image, loads it on the droplet over SSH, starts a candidate on port 8511, and checks `/health`, the HTML page, the asset files, and that an unknown API path is JSON. It then binds `127.0.0.1:8510` to container port 8000.
+
+`PROJECT_NAME=jev-explorer` selects these remote paths. The script does not create or overwrite the env file, and it checks that the file exists before it stops anything:
+
+- App directory: `/opt/apps/jev-explorer/production`
+- Env file: `/opt/apps/jev-explorer/production/.env`
+- Workspace: `/opt/apps/jev-explorer/production/workspace`
+- Container: `jev-explorer-production`
+
+Before the first deploy, on the server:
+
+```bash
+sudo mkdir -p /opt/apps/jev-explorer/production
+sudo cp -a /opt/apps/agentguard/production/.env /opt/apps/jev-explorer/production/.env
+sudo cp -a /opt/apps/agentguard/production/workspace /opt/apps/jev-explorer/production/workspace
+```
+
+Skip the workspace copy if a new seeded workspace is enough. The script leaves an existing `project-notes.txt` alone. It does not delete `/opt/apps/agentguard`.
+
+The old container `agentguard-production` is stopped only to free port 8510. `docker start` brings it back with the port mapping, env file, and workspace it already had. The script does not run that image on container port 8000. After a healthy cutover the container stays stopped until you remove it yourself.
+
+If cutover fails, the script removes the new container and starts `agentguard-production` again. If the new container is already up and a later check looks wrong, stop it first so port 8510 is free, then start the legacy container:
+
+```bash
+ssh mhdmoh-server 'docker rm -f jev-explorer-production && docker start agentguard-production'
+```
+
+Local `scripts/deploy.config` must set `CONTAINER_PORT=8000`. The image listens on 8000.
+
+`deploy/nginx/jev-explorer.conf.template` is only a template in this repository. It is not the live Nginx config. On the droplet, confirm the server block for `jev-explorer.mhdmoh.com` proxies to `127.0.0.1:8510`:
+
+```bash
+ssh mhdmoh-server 'sudo nginx -T' | awk '
+  /server_name[[:space:]]+jev-explorer\.mhdmoh\.com/ {show=1}
+  show {print}
+  show && /^[[:space:]]*}/ {show=0}
+'
+ssh mhdmoh-server 'curl -fsS http://127.0.0.1:8510/health'
+```
+
+The `proxy_pass` or upstream in that block must be `127.0.0.1:8510`. This repository cannot show whether that is already true.
 
 ## Limitations
 

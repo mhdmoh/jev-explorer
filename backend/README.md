@@ -53,3 +53,5 @@ tests/
 ```
 
 Interactive docs: http://localhost:8000/docs. The decision explorer UI is in `../frontend`.
+
+The production image is built from the repository root `Dockerfile`. It listens on port 8000 and serves the compiled UI from `/app/static` together with this API. Build it from the repo root, not from `backend/`.

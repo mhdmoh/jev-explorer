@@ -27,6 +27,9 @@ node_modules/
 coverage/
 *.tsbuildinfo
 
+# Built UI inside a local backend tree. The image writes this at /app/static.
+backend/static/
+
 # Demo workspace mutations (keep structure, ignore generated notes)
 backend/demo/workspace/notes/*
 !backend/demo/workspace/notes/.gitkeep

@@ -1,7 +1,6 @@
 import { readApiError } from "./decisions.ts"
 import type { ApiErrorPayload } from "../types/decisions.ts"
 
-const DEFAULT_API_BASE_URL = "http://localhost:8000"
 const HEALTH_TIMEOUT_MS = 4000
 const DECISION_TIMEOUT_MS = 35_000
 
@@ -23,9 +22,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Same-origin path. The dev server proxies these to the API. */
 export function apiBaseUrl(): string {
-  const configured = import.meta.env.VITE_API_BASE_URL?.trim()
-  return (configured || DEFAULT_API_BASE_URL).replace(/\/$/, "")
+  return ""
 }
 
 export function apiUrl(path: string): string {
