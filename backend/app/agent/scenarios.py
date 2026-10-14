@@ -95,7 +95,7 @@ def propose_from_request(user_request: str) -> ToolCall:
             tool_name="send_notification",
             arguments={
                 "recipient": "external@example.com",
-                "body": "Demo notification from AgentGuard.",
+                "body": "Demo notification from Jev Explorer.",
             },
             agent_reasoning_summary="Selected send_notification for an external side effect.",
             agent_goal=user_request,

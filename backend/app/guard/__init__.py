@@ -1,4 +1,4 @@
-"""AgentGuard package — import gateway from app.guard.gateway to avoid cycles."""
+"""Jev Explorer package — import gateway from app.guard.gateway to avoid cycles."""
 
 from app.guard.models import (
     AgentRun,

@@ -27,7 +27,7 @@ class ToolRegistry:
         notes = workspace / "project-notes.txt"
         if not notes.exists():
             notes.write_text(
-                "AgentGuard demo notes\n"
+                "Jev Explorer demo notes\n"
                 "=====================\n"
                 "This sandbox is used for safe tool demonstrations.\n"
                 "Tools may only read/write inside this workspace.\n",

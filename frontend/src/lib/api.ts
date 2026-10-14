@@ -98,7 +98,7 @@ export async function postJson(path: string, body: unknown, signal?: AbortSignal
       throw new ApiError("The decision request was cancelled")
     }
     if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new ApiError("The decision request timed out before AgentGuard responded")
+      throw new ApiError("The decision request timed out before Jev Explorer responded")
     }
     throw new ApiError("The backend could not be reached")
   }

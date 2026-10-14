@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy AgentGuard to DigitalOcean via local Docker build + SSH image transfer.
+# Deploy Jev Explorer to DigitalOcean via local Docker build + SSH image transfer.
 # Architecture: Laptop → docker build/save → ssh load → container on 127.0.0.1:HOST_PORT ← Nginx ← HTTPS
 #
 # Usage:
@@ -21,7 +21,7 @@ if [[ -f "${SCRIPT_DIR}/deploy.config" ]]; then
   source "${SCRIPT_DIR}/deploy.config"
 fi
 
-PROJECT_NAME="${PROJECT_NAME:-agentguard}"
+PROJECT_NAME="${PROJECT_NAME:-jev-explorer}"
 SSH_HOST="${SSH_HOST:-mhdmoh-server}"
 DOMAIN="${DOMAIN:-}"
 HOST_PORT="${HOST_PORT:-8510}"

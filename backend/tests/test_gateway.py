@@ -5,13 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.config.settings import Settings
-from app.guard.gateway import AgentGuard
+from app.guard.gateway import JevExplorer
 from app.guard.models import PolicyOutcome
 
 
-def _guard(tmp_path: Path) -> AgentGuard:
+def _guard(tmp_path: Path) -> JevExplorer:
     settings = Settings(_env_file=None, JEV_API_KEY="", DEMO_WORKSPACE=tmp_path)
-    return AgentGuard(settings)
+    return JevExplorer(settings)
 
 
 def test_safe_read_executes(tmp_path: Path) -> None:

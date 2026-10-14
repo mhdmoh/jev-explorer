@@ -1,10 +1,10 @@
-# AgentGuard
+# Jev Explorer
 
 The behavior below is the gateway experiment: typed Jev signals, deterministic policy, and sandboxed tools. That code now lives in `backend/`. The user-facing application is the React app in `frontend/`.
 
 ## Overview
 
-AgentGuard is a small AI engineering experiment that places a typed decision layer and a deterministic policy engine between an agent’s proposed tool call and tool execution. It demonstrates an execution boundary for tool-using agents without claiming to be a production security product.
+Jev Explorer is a small AI engineering experiment that places a typed decision layer and a deterministic policy engine between an agent’s proposed tool call and tool execution. It demonstrates an execution boundary for tool-using agents without claiming to be a production security product.
 
 ## Problem
 
@@ -31,14 +31,14 @@ Chat completions mainly produce text. Tool calls produce side effects. Side effe
 ## Architecture
 
 ```text
-Agent → ToolCall → AgentGuard → JevEvaluator → PolicyEngine → ToolExecutor
+Agent → ToolCall → Jev Explorer → JevEvaluator → PolicyEngine → ToolExecutor
 ```
 
 Strict import boundaries keep network I/O, policy math, and side effects separable for testing.
 
 ## Why Jev
 
-AgentGuard needs calibrated, typed signals:
+Jev Explorer needs calibrated, typed signals:
 
 - **choice** for action category
 - **score** for consequence severity
@@ -48,7 +48,7 @@ Those signals are more suitable for policy code than unstructured natural langua
 
 ## Decision model
 
-For each proposal, AgentGuard sends a compact state (goal, tool, arguments, resource hints). Jev returns action type, risk, and safe probability in one round trip. Risk is treated as a 1–5 consequence scale, not a probability.
+For each proposal, Jev Explorer sends a compact state (goal, tool, arguments, resource hints). Jev returns action type, risk, and safe probability in one round trip. Risk is treated as a 1–5 consequence scale, not a probability.
 
 ## Policy engine
 

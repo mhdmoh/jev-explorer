@@ -44,7 +44,7 @@ export function JsonPanel({ request, response }: Props) {
         title="Response JSON"
         codeId="response-json"
         value={response}
-        empty="The AgentGuard response appears here, including error JSON."
+        empty="The Jev Explorer response appears here, including error JSON."
         copied={copied === "response"}
         onCopy={() => void copy("response", response)}
       />

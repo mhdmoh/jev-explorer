@@ -1,8 +1,8 @@
-# AgentGuard
+# Jev Explorer
 
-AgentGuard is an engineering experiment that evaluates AI-generated tool calls before they execute.
+Jev Explorer is an engineering experiment that evaluates AI-generated tool calls before they execute.
 
-It uses [Jev](https://jevtypesafeai.com) for typed decision signals (`choice`, `score`, `noul`), then applies a deterministic application policy. Jev does not choose the final action. AgentGuard does.
+It uses [Jev](https://jevtypesafeai.com) for typed decision signals (`choice`, `score`, `noul`), then applies a deterministic application policy. Jev does not choose the final action. Jev Explorer does.
 
 The repository is a monorepo:
 
@@ -55,7 +55,7 @@ cp .env.example .env
 npm run dev
 ```
 
-The dev server is http://localhost:5173. The Jev Decision Explorer checks `GET /health`, then lets you run choice, score, and noul against the AgentGuard API. See `frontend/README.md` for the fields and error messages.
+The dev server is http://localhost:5173. The Jev Decision Explorer checks `GET /health`, then lets you run choice, score, and noul against the Jev Explorer API. See `frontend/README.md` for the fields and error messages.
 
 `VITE_API_BASE_URL` defaults to `http://localhost:8000` when `.env` is absent. The backend allows that Vite origin through `CORS_ALLOW_ORIGINS`.
 
@@ -116,7 +116,7 @@ With the backend running, FastAPI serves interactive docs at http://localhost:80
 | `POST` | `/api/v1/jev/score` | A score index on your scale, probabilities, and legend when Jev sends one |
 | `POST` | `/api/v1/jev/noul` | A calibrated probability from 0 to 1 that the answer is yes |
 
-Each route sends one question to Jev `POST /api/v1/decide` (the URL in `JEV_BASE_URL`). The response is Jev's typed signal plus `model` and `usage` when Jev includes them. AgentGuard does not turn that signal into execute, confirm, or block. Policy stays in `backend/app/guard/`.
+Each route sends one question to Jev `POST /api/v1/decide` (the URL in `JEV_BASE_URL`). The response is Jev's typed signal plus `model` and `usage` when Jev includes them. Jev Explorer does not turn that signal into execute, confirm, or block. Policy stays in `backend/app/guard/`.
 
 ### Choice
 
@@ -214,7 +214,7 @@ The decision tests inject a fake Jev transport. They do not read a real key and 
 ## How the gateway works
 
 ```text
-User request → Agent → Proposed tool call → AgentGuard
+User request → Agent → Proposed tool call → Jev Explorer
                                               ↓
                                       Jev (choice · score · noul)
                                               ↓
@@ -241,7 +241,7 @@ A longer write-up of the original experiment is in [docs/case-study.md](docs/cas
 
 ## Existing production deploy
 
-`scripts/deploy-production.sh` builds the API image from `backend/` and expects the process to listen on container port `8000`. Health checks call `GET /health`. Nginx site config is in `deploy/nginx/agentguard.conf.template`. This phase does not add new deployment tooling. If a local `scripts/deploy.config` still sets `CONTAINER_PORT=8501`, change it to `8000` before the next deploy.
+`scripts/deploy-production.sh` builds the API image from `backend/` and expects the process to listen on container port `8000`. Health checks call `GET /health`. Nginx site config is in `deploy/nginx/jev-explorer.conf.template`. This phase does not add new deployment tooling. If a local `scripts/deploy.config` still sets `CONTAINER_PORT=8501`, change it to `8000` before the next deploy.
 
 ## Limitations
 

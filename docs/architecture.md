@@ -1,20 +1,20 @@
 # Architecture
 
-AgentGuard sits between a browser and the hosted Jev API. The browser never sees Jev credentials. Jev returns typed decision signals. Application branching stays in AgentGuard.
+Jev Explorer sits between a browser and the hosted Jev API. The browser never sees Jev credentials. Jev returns typed decision signals. Application branching stays in Jev Explorer.
 
 ```text
 Browser
    |
 React + TypeScript + Vite
    | HTTP / JSON
-AgentGuard Backend API
+Jev Explorer Backend API
    | authenticated server-side request
 Jev Hosted API
 ```
 
 ## Frontend
 
-The frontend is the Jev Decision Explorer. It checks `GET /health`, then posts choice, score, and noul requests to the AgentGuard API. It shows the typed result, a visualization of the returned numbers, and the JSON body that was sent and received. It does not call Jev, store a key, run policy, or execute tools.
+The frontend is the Jev Decision Explorer. It checks `GET /health`, then posts choice, score, and noul requests to the Jev Explorer API. It shows the typed result, a visualization of the returned numbers, and the JSON body that was sent and received. It does not call Jev, store a key, run policy, or execute tools.
 
 ## Backend
 
@@ -30,7 +30,7 @@ The backend is a FastAPI application. It owns:
 
 `GET /health` confirms the process is up. It does not call Jev and does not return configuration or secrets.
 
-The gateway still evaluates a proposed tool call in Python: one batched Jev `POST /api/v1/decide`, then AgentGuard policy, then a sandboxed tool. That path is not the HTTP API below.
+The gateway still evaluates a proposed tool call in Python: one batched Jev `POST /api/v1/decide`, then Jev Explorer policy, then a sandboxed tool. That path is not the HTTP API below.
 
 The HTTP API exposes one primitive at a time. Each route validates the request, sends a single question to the same decide endpoint, and returns Jev's answer. It does not run policy and it does not execute a tool.
 
@@ -44,7 +44,7 @@ Jev itself does not publish those three paths. The hosted contract is `POST /api
 
 ## Jev
 
-Jev returns typed decisions for the primitives it supports: `choice`, `score`, and `noul`. A Jev response is a signal. It is not the application's final behavior. AgentGuard (or a later UI example) decides what to do with the signal.
+Jev returns typed decisions for the primitives it supports: `choice`, `score`, and `noul`. A Jev response is a signal. It is not the application's final behavior. Jev Explorer (or a later UI example) decides what to do with the signal.
 
 ## Local development CORS
 

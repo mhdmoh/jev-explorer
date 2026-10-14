@@ -242,10 +242,10 @@ export function Explorer() {
     <div className="page">
       <header className="top">
         <div className="brand">
-          <p className="eyebrow">AgentGuard</p>
+          <p className="eyebrow">Jev Explorer</p>
           <h1>Jev Decision Explorer</h1>
           <p className="lede">
-            Try choice, score, and noul through the AgentGuard backend. The browser never calls
+            Try choice, score, and noul through the Jev Explorer backend. The browser never calls
             Jev and never sees the API key.
           </p>
         </div>

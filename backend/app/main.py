@@ -1,4 +1,4 @@
-"""FastAPI entrypoint for the AgentGuard API."""
+"""FastAPI entrypoint for the Jev Explorer API."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def create_app() -> FastAPI:
     setup_logging(settings.log_level)
 
     app = FastAPI(
-        title="AgentGuard",
+        title="Jev Explorer",
         version=__version__,
         summary="Safety gateway API for typed Jev decisions.",
     )

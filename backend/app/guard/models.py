@@ -1,4 +1,4 @@
-"""Shared domain models for AgentGuard."""
+"""Shared domain models for Jev Explorer."""
 
 from __future__ import annotations
 
@@ -86,7 +86,7 @@ class ExecutionResult(BaseModel):
 
 
 class AgentRun(BaseModel):
-    """Full lifecycle of one agent request through AgentGuard."""
+    """Full lifecycle of one agent request through Jev Explorer."""
 
     run_id: str
     user_request: str

@@ -1,14 +1,14 @@
-# Nginx site template for AgentGuard
-# Copy to the server (e.g. /etc/nginx/sites-available/agentguard) and replace:
+# Nginx site template for Jev Explorer
+# Copy to the server (e.g. /etc/nginx/sites-available/jev-explorer) and replace:
 #   __DOMAIN__      public hostname
 #   __HOST_PORT__   local Docker published port (e.g. 8510)
 #
 # Then:
-#   sudo ln -s /etc/nginx/sites-available/agentguard /etc/nginx/sites-enabled/
+#   sudo ln -s /etc/nginx/sites-available/jev-explorer /etc/nginx/sites-enabled/
 #   sudo nginx -t && sudo systemctl reload nginx
 #   sudo certbot --nginx -d __DOMAIN__
 
-upstream agentguard_api {
+upstream jev_explorer_api {
     server 127.0.0.1:__HOST_PORT__;
 }
 
@@ -18,7 +18,7 @@ server {
     server_name __DOMAIN__;
 
     location / {
-        proxy_pass http://agentguard_api;
+        proxy_pass http://jev_explorer_api;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

@@ -1,5 +1,5 @@
 [project]
-name = "agentguard"
+name = "jev-explorer"
 version = "0.1.0"
 description = "AI Agent Safety Gateway — evaluate tool calls with Jev before execution"
 readme = "README.md"

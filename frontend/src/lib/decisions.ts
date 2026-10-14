@@ -225,16 +225,16 @@ export function explainError(code: string | undefined, status: number | undefine
     case "jev_timeout":
       return "The decision request timed out. You can try again."
     case "jev_upstream_error":
-      return "Jev returned an error to AgentGuard."
+      return "Jev returned an error to Jev Explorer."
     case "jev_network_error":
-      return "AgentGuard could not reach Jev. This is separate from the backend health check."
+      return "Jev Explorer could not reach Jev. This is separate from the backend health check."
     case "jev_invalid_response":
-      return "Jev returned a response AgentGuard could not accept."
+      return "Jev returned a response Jev Explorer could not accept."
     case "internal_error":
-      return "AgentGuard hit an unexpected error."
+      return "Jev Explorer hit an unexpected error."
     default:
       if (status === undefined) {
-        return "The backend could not be reached. Health and decision calls both use the AgentGuard API."
+        return "The backend could not be reached. Health and decision calls both use the Jev Explorer API."
       }
       return "The decision request failed."
   }

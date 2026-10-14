@@ -1,6 +1,6 @@
 """Thin HTTP adapters for one Jev primitive at a time.
 
-These routes return Jev's typed signal. They do not apply AgentGuard policy
+These routes return Jev's typed signal. They do not apply Jev Explorer policy
 and they do not execute tools.
 """
 
@@ -81,7 +81,7 @@ def score(
     settings: SettingsDep,
     client: JevClientDep,
 ) -> ScoreResponse:
-    """Return Jev's score index unchanged. AgentGuard does not clamp or authorize it."""
+    """Return Jev's score index unchanged. Jev Explorer does not clamp or authorize it."""
     anonymous_id, client_ip = caller_identity(request, settings)
 
     def build() -> ScoreResponse:

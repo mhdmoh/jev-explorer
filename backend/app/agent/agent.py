@@ -8,7 +8,7 @@ from app.utils.timing import Timer
 
 
 class Agent:
-    """Deterministic scenario agent (LLM optional later; never bypasses AgentGuard)."""
+    """Deterministic scenario agent (LLM optional later; never bypasses Jev Explorer)."""
 
     def propose(self, user_request: str) -> tuple[ToolCall, float]:
         with Timer() as timer:

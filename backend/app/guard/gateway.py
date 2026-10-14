@@ -1,4 +1,4 @@
-"""AgentGuard gateway — orchestrates evaluate → policy → (optional) execute."""
+"""Jev Explorer gateway — orchestrates evaluate → policy → (optional) execute."""
 
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ from app.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class AgentGuard:
+class JevExplorer:
     """
     Safety gateway between agent proposals and tool execution.
 
     Separation:
-      Agent → ToolCall → AgentGuard → JevEvaluator → PolicyEngine → ToolExecutor
+      Agent → ToolCall → Jev Explorer → JevEvaluator → PolicyEngine → ToolExecutor
     """
 
     def __init__(

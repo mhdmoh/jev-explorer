@@ -1,6 +1,6 @@
-# AgentGuard frontend
+# Jev Explorer frontend
 
-React + TypeScript + Vite app for the Jev Decision Explorer. It calls the AgentGuard backend. It does not call Jev and it does not hold a Jev API key.
+React + TypeScript + Vite app for the Jev Decision Explorer. It calls the Jev Explorer backend. It does not call Jev and it does not hold a Jev API key.
 
 ## Install and run
 
@@ -24,7 +24,7 @@ The header status comes from `GET /health`. It can read "Backend connected" when
 
 ## API URL
 
-`VITE_API_BASE_URL` is the AgentGuard origin. It defaults to `http://localhost:8000`. Copy `.env.example` to `.env` to override it. Do not put `JEV_API_KEY` or any other secret in a `VITE_` variable.
+`VITE_API_BASE_URL` is the Jev Explorer origin. It defaults to `http://localhost:8000`. Copy `.env.example` to `.env` to override it. Do not put `JEV_API_KEY` or any other secret in a `VITE_` variable.
 
 ## Using the explorer
 
@@ -59,10 +59,10 @@ The result panel maps the backend `error.code`:
 | `jev_not_configured` | Set `JEV_API_KEY` on the backend |
 | `jev_rate_limited` | Too many requests; wait and retry |
 | `jev_timeout` | The decision request timed out |
-| `jev_upstream_error` | Jev returned an error to AgentGuard |
-| `jev_network_error` | AgentGuard could not reach Jev |
-| `jev_invalid_response` | AgentGuard could not accept Jev's response |
-| `internal_error` | Unexpected AgentGuard error |
+| `jev_upstream_error` | Jev returned an error to Jev Explorer |
+| `jev_network_error` | Jev Explorer could not reach Jev |
+| `jev_invalid_response` | Jev Explorer could not accept Jev's response |
+| `internal_error` | Unexpected Jev Explorer error |
 
 A failed health check is "Backend unavailable". That is separate from a Jev upstream failure, which still means the backend answered.
 

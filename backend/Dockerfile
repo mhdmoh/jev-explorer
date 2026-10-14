@@ -1,5 +1,5 @@
-# AgentGuard API image
-# Build from backend/: docker build -t agentguard:production-<sha> .
+# Jev Explorer API image
+# Build from backend/: docker build -t jev-explorer:production-<sha> .
 
 FROM python:3.13-slim-bookworm AS builder
 

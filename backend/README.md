@@ -1,6 +1,6 @@
-# AgentGuard backend
+# Jev Explorer backend
 
-Python API for AgentGuard. It keeps the Jev client, policy engine, gateway, and sandboxed tools, and exposes them over HTTP. The browser UI lives in `../frontend`.
+Python API for Jev Explorer. It keeps the Jev client, policy engine, gateway, and sandboxed tools, and exposes them over HTTP. The browser UI lives in `../frontend`.
 
 ## Run
 

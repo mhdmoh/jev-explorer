@@ -22,7 +22,7 @@ def test_read_and_list(tmp_path: Path) -> None:
 
     read = registry.execute("read_file", {"path": "project-notes.txt"})
     assert read["ok"] is True
-    assert "AgentGuard" in read["content"]
+    assert "Jev Explorer" in read["content"]
 
 
 def test_delete_only_inside_workspace(tmp_path: Path) -> None:
