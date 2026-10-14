@@ -12,16 +12,9 @@ const PATHS: Record<string, ReactNode> = {
     </>
   ),
   check: <path d="M3.5 8.5l3 3 6-7" />,
-  sun: (
-    <>
-      <circle cx="8" cy="8" r="3" />
-      <path d="M8 1.5V3M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1" />
-    </>
-  ),
-  moon: <path d="M13 9.5A5.5 5.5 0 016.5 3a5.5 5.5 0 106.5 6.5z" />,
 }
 
-type Name = "up" | "down" | "x" | "plus" | "copy" | "check" | "sun" | "moon"
+type Name = "up" | "down" | "x" | "plus" | "copy" | "check"
 
 export function Icon({ name, size = 16 }: { name: Name; size?: number }) {
   return (

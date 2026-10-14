@@ -163,6 +163,22 @@ describe("Explorer", () => {
     expect(document.querySelector("#response-json")?.textContent ?? "").toContain(`"${code}"`)
   })
 
+  it("loads an example without sending a request or inventing a result", async () => {
+    const user = userEvent.setup()
+    const fetchMock = installFetch(() => jsonResponse({}))
+    await renderExplorer()
+    await user.click(screen.getByRole("radio", { name: /Score/ }))
+    await user.click(screen.getByRole("button", { name: "Load example" }))
+    expect((screen.getByLabelText("State") as HTMLTextAreaElement).value).toMatch(/checkout fails/)
+    expect((screen.getByLabelText("Instructions") as HTMLTextAreaElement).value).toBe(
+      "How urgent is this incident?",
+    )
+    expect(screen.getByText(/Nothing here is a sample result/)).toBeTruthy()
+    expect(decisionCalls(fetchMock)).toHaveLength(0)
+    await user.click(screen.getByRole("radio", { name: /Choice/ }))
+    expect(screen.getByDisplayValue("billing")).toBeTruthy()
+  })
+
   it("disables submit while a request is in flight", async () => {
     const user = userEvent.setup()
     let release: (value: Response) => void = () => {}

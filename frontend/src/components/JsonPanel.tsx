@@ -9,6 +9,7 @@ type Props = {
 
 export function JsonPanel({ request, response }: Props) {
   const [copied, setCopied] = useState<"request" | "response" | null>(null)
+  const [open, setOpen] = useState(true)
 
   async function copy(kind: "request" | "response", value: unknown | null) {
     if (value === null) {
@@ -24,7 +25,13 @@ export function JsonPanel({ request, response }: Props) {
   }
 
   return (
-    <section className="console" aria-label="Request and response JSON">
+    <section className="console-wrap" aria-label="Request and response JSON">
+      <div className="console-bar">
+        <button type="button" className="text-btn" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+          {open ? "Collapse JSON" : "Expand JSON"}
+        </button>
+      </div>
+      <div className={open ? "console is-open" : "console"}>
       <JsonPane
         title="Request JSON"
         codeId="request-json"
@@ -41,6 +48,7 @@ export function JsonPanel({ request, response }: Props) {
         copied={copied === "response"}
         onCopy={() => void copy("response", response)}
       />
+      </div>
     </section>
   )
 }
@@ -64,7 +72,7 @@ function JsonPane({
     <div className="code-panel">
       <div className="code-head">
         <h3>{title}</h3>
-        <button type="button" className="copy" disabled={value === null} onClick={onCopy}>
+        <button type="button" className="copy" aria-live="polite" disabled={value === null} onClick={onCopy}>
           <Icon name={copied ? "check" : "copy"} size={14} />
           <span>{copied ? "Copied" : "Copy"}</span>
         </button>

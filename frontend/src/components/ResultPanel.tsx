@@ -118,6 +118,7 @@ function ChoiceResult({ body, options }: { body: unknown; options: Option[] }) {
         {view.choice && descriptions.get(view.choice) ? (
           <p className="desc">{descriptions.get(view.choice)}</p>
         ) : null}
+        <Confidence value={view.confidence} />
       </div>
       <div>
         <div className="sec-row">
@@ -203,7 +204,7 @@ function ChoiceResult({ body, options }: { body: unknown; options: Option[] }) {
         Probability is the weight returned for an option. Confidence is a separate number on the
         answer. They are not interchangeable.
       </p>
-      <Meta model={view.model} confidence={view.confidence} />
+      <Meta model={view.model} />
     </div>
   )
 }
@@ -251,7 +252,7 @@ function ScoreResult({ body, labels }: { body: unknown; labels: string[] }) {
         {labels.length >= 2 ? (
           <div className="nums">
             {labels.map((label, index) => (
-              <span key={`${index}-${label}`} style={{ left: `${(index / last) * 100}%` }}>
+              <span key={`${index}-${label}`} style={{ left: `${(index / last) * 100}%` }} title={scaleLabel(view.legend, labels, index)}>
                 {index}
               </span>
             ))}
@@ -263,11 +264,11 @@ function ScoreResult({ body, labels }: { body: unknown; labels: string[] }) {
           The marker stays off the scale so an out-of-range score is not pulled onto a level.
         </p>
       ) : null}
-      <div>
-        <div className="sec-row">
-          <h3 className="sec-title">Legend</h3>
-        </div>
-        {view.legend ? (
+      {view.legend && !legendShownOnScale(view.legend, labels) ? (
+        <div>
+          <div className="sec-row">
+            <h3 className="sec-title">Legend</h3>
+          </div>
           <ul className="dist">
             {Object.entries(view.legend).map(([index, label]) => (
               <li key={index}>
@@ -276,20 +277,23 @@ function ScoreResult({ body, labels }: { body: unknown; labels: string[] }) {
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="hint">Jev did not include a legend.</p>
-        )}
-      </div>
+        </div>
+      ) : view.legend ? null : (
+        <p className="hint">Jev did not include a legend.</p>
+      )}
       <div>
         <div className="sec-row">
-          <h3 className="sec-title">Where the probability sits</h3>
+          <h3 className="sec-title">Probability distribution</h3>
         </div>
         {view.probabilities ? (
           <>
-            <p className="fine">These weights are not the score. The score index above is the decision.</p>
+            <p className="fine">
+              These values are the probability weights Jev returned for each scale index. They are
+              not the score.
+            </p>
             <ul className="dist">
               {orderedProbabilityEntries(view.probabilities).map(([index, value]) => {
-                const label = view.legend?.[index] ?? labels[Number(index)]
+                const label = scaleLabel(view.legend, labels, Number(index))
                 const near =
                   placement?.kind === "aligned"
                     ? placement.index === Number(index)
@@ -297,7 +301,7 @@ function ScoreResult({ body, labels }: { body: unknown; labels: string[] }) {
                       ? placement.lower === Number(index) || placement.upper === Number(index)
                       : false
                 return (
-                  <li key={index} className={near ? "on" : undefined}>
+                  <li key={index} className={near ? "near" : undefined}>
                     <span className="idx sm">{index}</span>
                     <span className="lbl">{label || "Untitled"}</span>
                     <span className="bar" title={`Index ${index} probability ${formatExact(value)}`}>
@@ -351,34 +355,31 @@ function NoulResult({ body }: { body: unknown }) {
         This is Jev’s probability, not a yes/no and not permission to act. A cutoff, if an
         application uses one, belongs to that application’s policy.
       </p>
-      <Meta model={view.model} confidence={null} hideConfidence />
+      <Meta model={view.model} />
     </div>
   )
 }
 
-function Meta({
-  model,
-  confidence,
-  hideConfidence = false,
-}: {
-  model: string | null
-  confidence: number | null
-  hideConfidence?: boolean
-}) {
-  const meter = confidence === null ? null : barWidth(confidence)
+function Confidence({ value }: { value: number | null }) {
+  if (value === null) {
+    return <p className="sentence">Confidence: not included</p>
+  }
+  return (
+    <p className="conf">
+      Confidence <b>{formatExact(value)}</b>
+      <span className="meter" aria-hidden="true">
+        <i style={{ width: `${barWidth(value)}%` }} />
+      </span>
+    </p>
+  )
+}
+
+function Meta({ model, confidence }: { model: string | null; confidence?: number | null }) {
+  const showConfidence = confidence !== undefined
   return (
     <div className="meta">
-      <span className="chip mono">{model ?? "Model not included"}</span>
-      {hideConfidence ? null : confidence === null ? (
-        <span>Confidence: not included</span>
-      ) : (
-        <span className="conf">
-          Confidence <b>{formatExact(confidence)}</b>
-          <span className="meter" aria-hidden="true">
-            <i style={{ width: `${meter}%` }} />
-          </span>
-        </span>
-      )}
+      {model ? <span className="chip mono">{model}</span> : null}
+      {showConfidence ? <Confidence value={confidence ?? null} /> : null}
     </div>
   )
 }
@@ -397,6 +398,14 @@ function uniqueKeys(first: string[], second: string[]): string[] {
 
 function orderedProbabilityEntries(probabilities: Record<string, number>): [string, number][] {
   return Object.entries(probabilities).sort((left, right) => Number(left[0]) - Number(right[0]))
+}
+
+function scaleLabel(legend: Record<string, string> | null, labels: string[], index: number): string {
+  return legend?.[String(index)] ?? labels[index] ?? ""
+}
+
+function legendShownOnScale(legend: Record<string, string>, labels: string[]): boolean {
+  return Object.entries(legend).every(([index, label]) => labels[Number(index)] === label)
 }
 
 function placementText(placement: ReturnType<typeof scorePlacement>, labels: string[]): string {

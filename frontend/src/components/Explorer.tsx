@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 import { backendStatusLabel, useBackendStatus } from "../hooks/useBackendStatus.ts"
 import { ApiError, postJson } from "../lib/api.ts"
 import {
@@ -16,7 +16,6 @@ import {
 import type { ChoiceDraft, FieldErrors, ScoreDraft } from "../lib/decisions.ts"
 import type { Primitive, StateMode } from "../types/decisions.ts"
 import { ChoiceFields } from "./ChoiceFields.tsx"
-import { Icon } from "./Icon.tsx"
 import { JsonPanel } from "./JsonPanel.tsx"
 import { ResultPanel } from "./ResultPanel.tsx"
 import { ScoreFields } from "./ScoreFields.tsx"
@@ -76,28 +75,35 @@ function emptyRuns(): Record<Primitive, Run> {
   return { choice: IDLE, score: IDLE, noul: IDLE }
 }
 
-function preferredTheme(): "light" | "dark" {
-  try {
-    const stored = localStorage.getItem("jev-explorer-theme")
-    if (stored === "light" || stored === "dark") {
-      return stored
-    }
-  } catch {
-    // Ignore storage failures and fall through to the document or system theme.
-  }
-  const attr = document.documentElement.getAttribute("data-theme")
-  if (attr === "light" || attr === "dark") {
-    return attr
-  }
-  if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-    return "dark"
-  }
-  return "light"
-}
+const EXAMPLES = {
+  choice: {
+    state: "Customer: I was charged twice and nobody has replied for 3 days.",
+    instructions: "Which queue should handle this request?",
+    rows: () =>
+      [
+        ["billing", "payments, refunds, and invoices"],
+        ["bug", "the product is broken"],
+        ["account", "login, access, or account details"],
+      ].map(([key, description]) => ({ id: crypto.randomUUID(), key, description })),
+  },
+  score: {
+    state:
+      "Incident: checkout fails for about 12% of payments. It started 40 minutes ago, and support is seeing repeat tickets.",
+    instructions: "How urgent is this incident?",
+    rows: () =>
+      ["routine, no rush", "handle today", "urgent", "critical, service is down"].map((label) => ({
+        id: crypto.randomUUID(),
+        label,
+      })),
+  },
+  noul: {
+    state: "A customer was charged twice, wrote twice, and has had no reply for 3 days.",
+    instructions: "Is this a situation that warrants immediate human escalation?",
+  },
+} as const
 
 export function Explorer() {
   const status = useBackendStatus()
-  const [theme, setTheme] = useState<"light" | "dark">(preferredTheme)
   const [primitive, setPrimitive] = useState<Primitive>("choice")
   const [stateMode, setStateMode] = useState<StateMode>("text")
   const [stateText, setStateText] = useState(
@@ -108,10 +114,6 @@ export function Explorer() {
   const [scoreRows, setScoreRows] = useState(newScoreRows)
   const [runs, setRuns] = useState(emptyRuns)
   const aborts = useRef<Partial<Record<Primitive, AbortController>>>({})
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme)
-  }, [theme])
 
   const parsed = parseState(stateMode, stateText)
   const errors: FieldErrors = {
@@ -136,16 +138,6 @@ export function Explorer() {
   const active = PRIMITIVES.find((item) => item.id === primitive) ?? PRIMITIVES[0]
   const shortcut =
     typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl"
-
-  function selectTheme(next: "light" | "dark") {
-    document.documentElement.setAttribute("data-theme", next)
-    try {
-      localStorage.setItem("jev-explorer-theme", next)
-    } catch {
-      // Theme still applies for this page view when storage is blocked.
-    }
-    setTheme(next)
-  }
 
   function selectPrimitive(next: Primitive) {
     if (next !== primitive) {
@@ -217,6 +209,24 @@ export function Explorer() {
     }
   }
 
+  function loadExample() {
+    setStateMode("text")
+    if (primitive === "choice") {
+      setStateText(EXAMPLES.choice.state)
+      setInstructions((current) => ({ ...current, choice: EXAMPLES.choice.instructions }))
+      setChoiceRows(EXAMPLES.choice.rows())
+      return
+    }
+    if (primitive === "score") {
+      setStateText(EXAMPLES.score.state)
+      setInstructions((current) => ({ ...current, score: EXAMPLES.score.instructions }))
+      setScoreRows(EXAMPLES.score.rows())
+      return
+    }
+    setStateText(EXAMPLES.noul.state)
+    setInstructions((current) => ({ ...current, noul: EXAMPLES.noul.instructions }))
+  }
+
   function formatStateJson() {
     const next = parseState("json", stateText)
     if (!next.ok) {
@@ -244,15 +254,6 @@ export function Explorer() {
             <i className="status-dot" aria-hidden="true" />
             {backendStatusLabel(status)}
           </p>
-          <button
-            type="button"
-            className="ib"
-            aria-label="Switch color theme"
-            title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-            onClick={() => selectTheme(theme === "dark" ? "light" : "dark")}
-          >
-            <Icon name={theme === "dark" ? "sun" : "moon"} />
-          </button>
         </div>
       </header>
 
@@ -279,6 +280,9 @@ export function Explorer() {
         <section className="panel" aria-labelledby="reqTitle">
           <div className="p-head">
             <h2 id="reqTitle">Request</h2>
+            <button type="button" className="text-btn" onClick={loadExample}>
+              Load example
+            </button>
           </div>
           <form className="form" onSubmit={onSubmit} onKeyDown={onFormKeyDown} autoComplete="off" noValidate>
             <div className="field">
