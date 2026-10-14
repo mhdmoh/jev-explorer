@@ -6,7 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
+from app.api.errors import register_exception_handlers
 from app.api.health import router as health_router
+from app.api.jev import router as jev_router
 from app.config.settings import get_settings
 from app.utils.logging import setup_logging
 
@@ -28,7 +30,9 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Content-Type", "Accept"],
     )
+    register_exception_handlers(app)
     app.include_router(health_router)
+    app.include_router(jev_router)
     return app
 
 

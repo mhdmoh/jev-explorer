@@ -14,9 +14,16 @@ logger = get_logger(__name__)
 
 
 class JevClientError(Exception):
-    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        code: str = "upstream_http",
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.code = code
 
 
 class JevClient:
@@ -58,7 +65,9 @@ class JevClient:
                 client_ip=client_ip,
             )
         except RateLimitExceeded as exc:
-            raise JevClientError(str(exc), status_code=429) from exc
+            raise JevClientError(
+                str(exc), status_code=429, code="rate_limited"
+            ) from exc
 
         logger.info("jev_request_started run_id=%s", run_id)
 
@@ -72,12 +81,14 @@ class JevClient:
                 json=body,
             )
         except httpx.TimeoutException as exc:
-            raise JevClientError("Jev request timed out") from exc
+            raise JevClientError("Jev request timed out", code="timeout") from exc
         except httpx.HTTPError as exc:
-            raise JevClientError(f"Jev HTTP error: {exc}") from exc
+            raise JevClientError(f"Jev HTTP error: {exc}", code="network") from exc
 
         if response.status_code == 401:
-            raise JevClientError("Jev authentication failed", status_code=401)
+            raise JevClientError(
+                "Jev authentication failed", status_code=401, code="upstream_http"
+            )
         if response.status_code == 402:
             raise JevClientError("Jev insufficient credits", status_code=402)
         if response.status_code == 403:
@@ -97,13 +108,116 @@ class JevClient:
         try:
             payload = response.json()
         except ValueError as exc:
-            raise JevClientError("Jev returned non-JSON response") from exc
+            raise JevClientError(
+                "Jev returned non-JSON response",
+                code="invalid_response",
+            ) from exc
 
         if not isinstance(payload, dict):
-            raise JevClientError("Jev response must be a JSON object")
+            raise JevClientError(
+                "Jev response must be a JSON object", code="invalid_response"
+            )
 
         logger.info("jev_request_completed run_id=%s", run_id)
         return payload
+
+    def choice(
+        self,
+        *,
+        state: Any,
+        instructions: str,
+        criteria: dict[str, str],
+        model: str | None = None,
+        run_id: str = "-",
+        client_ip: str | None = None,
+        anonymous_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Ask one choice question through POST /api/v1/decide."""
+        return self._ask(
+            state=state,
+            model=model,
+            question={
+                "type": "choice",
+                "instructions": instructions,
+                "criteria": criteria,
+            },
+            run_id=run_id,
+            client_ip=client_ip,
+            anonymous_id=anonymous_id,
+        )
+
+    def score(
+        self,
+        *,
+        state: Any,
+        instructions: str,
+        criteria: list[str],
+        model: str | None = None,
+        run_id: str = "-",
+        client_ip: str | None = None,
+        anonymous_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Ask one score question through POST /api/v1/decide."""
+        return self._ask(
+            state=state,
+            model=model,
+            question={
+                "type": "score",
+                "instructions": instructions,
+                "criteria": criteria,
+            },
+            run_id=run_id,
+            client_ip=client_ip,
+            anonymous_id=anonymous_id,
+        )
+
+    def noul(
+        self,
+        *,
+        state: Any,
+        instructions: str,
+        model: str | None = None,
+        run_id: str = "-",
+        client_ip: str | None = None,
+        anonymous_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Ask one noul question through POST /api/v1/decide."""
+        return self._ask(
+            state=state,
+            model=model,
+            question={"type": "noul", "instructions": instructions},
+            run_id=run_id,
+            client_ip=client_ip,
+            anonymous_id=anonymous_id,
+        )
+
+    def _ask(
+        self,
+        *,
+        state: Any,
+        model: str | None,
+        question: dict[str, Any],
+        run_id: str,
+        client_ip: str | None,
+        anonymous_id: str | None,
+    ) -> dict[str, Any]:
+        resolved_model = (model or self._settings.jev_model).strip()
+        body: dict[str, Any] = {
+            "state": state,
+            "questions": {QUESTION_KEY: question},
+        }
+        if resolved_model:
+            body["model"] = resolved_model
+        return self.decide(
+            body,
+            run_id=run_id,
+            client_ip=client_ip,
+            anonymous_id=anonymous_id,
+        )
+
+
+# Internal question name. Callers of the primitive endpoints receive the unwrapped answer.
+QUESTION_KEY = "result"
 
 
 def _safe_error_detail(response: httpx.Response) -> str:
